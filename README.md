@@ -6,13 +6,13 @@ The **Discounted Udemy Course Enroller** (Web Platform) is a modern, containeriz
 ## Implemented Features
 
 ### 1. Modern Web Frontend
--   **Tech Stack**: Next.js 14 (App Router), TypeScript, Tailwind CSS.
+-   **Tech Stack**: Next.js 16 (App Router), React 19, Tailwind CSS v4.
 -   **Course Feed**: A responsive grid layout displaying all available free courses.
 -   **Live Data**: Fetches real-time data from the backend API.
 -   **Visuals**: Clean card-based design showing course title, platform source, "FREE" badges, and direct enrollment links.
 
 ### 2. Powerful Backend API
--   **Tech Stack**: FastAPI (Python).
+-   **Tech Stack**: FastAPI (Python), APScheduler.
 -   **Scraping Engine**: Reused and adapted the robust logic from the original project.
     -   *Enhanced*: Added support for handling `trk.udemy.com` redirect links.
 -   **Endpoints**:
@@ -62,6 +62,7 @@ graph LR
 - [x] **Collect free Udemy coupons**: Scrapes coupons from Real Discount, Discudemy, IDownloadCoupons, etc.
 - [x] **Display course feed**: Web interface showing title, site source, and coupon validity.
 - [x] **Store course history**: Database retention of all scraped courses.
-- [x] **Background Updates**: Asynchronous scraping without UI blocking.
+- [x] **Background Updates**: Automated periodic scraping (every 15 mins) and manual trigger.
+- [x] **Instant Scrape**: Frontend button to trigger scraping immediately.
 - [x] **Responsive Design**: Mobile-friendly UI with Tailwind CSS.
 - [x] **Containerized**: Easy deployment with Docker.
