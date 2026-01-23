@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+rookiepy
+cloudscraper
+beautifulsoup4
+requests
+rich
+loguru
+lxml
+sqlalchemy
+psycopg2-binary
+tomli
