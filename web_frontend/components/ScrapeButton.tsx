@@ -8,7 +8,8 @@ export default function ScrapeButton() {
     const handleScrape = async () => {
         setLoading(true);
         try {
-            const response = await fetch("http://localhost:8000/scrape", {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const response = await fetch(`${apiUrl}/scrape`, {
                 method: "POST",
             });
             if (response.ok) {
@@ -29,8 +30,8 @@ export default function ScrapeButton() {
             onClick={handleScrape}
             disabled={loading}
             className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
                 }`}
         >
             {loading ? "Starting Scrape..." : "Check Now"}
