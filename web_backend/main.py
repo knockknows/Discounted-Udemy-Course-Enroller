@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks, Depends
+from fastapi import FastAPI, BackgroundTasks, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from typing import List, Optional
@@ -40,6 +40,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"Incoming request: {request.method} {request.url} from {request.client.host}")
+    msg = f"Headers: {request.headers}"
+    print(msg)
+    response = await call_next(request)
+    print(f"Response status: {response.status_code}")
+    return response
 
 def scrape_job(db: Session):
     print("Starting background scrape...")
