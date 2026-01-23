@@ -9,8 +9,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from base import Scraper, scraper_dict, logger
 
 # Configure logger to output to console for backend logs
-logger.remove()
-logger.add(sys.stderr, level="INFO")
+# logger.remove()
+# logger.add(sys.stderr, level="INFO")
 
 def run_scraper_thread(site: str, scraper_instance: Scraper):
     """

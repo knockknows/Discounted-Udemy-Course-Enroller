@@ -1,6 +1,9 @@
 from fastapi import FastAPI, BackgroundTasks, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import sys
+from loguru import logger
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from typing import List, Optional
 import uvicorn
 from contextlib import asynccontextmanager
@@ -13,29 +16,33 @@ from scraper_wrapper import get_all_courses
 # Create tables
 models.Base.metadata.create_all(bind=engine)
 
+# Init logger
+logger.remove()
+logger.add(sys.stderr, format="{time} {level} {message}", level="INFO", serialize=True)
+
 # Initialize scheduler
 scheduler = AsyncIOScheduler()
 
 def scheduled_scrape():
-    print("Running scheduled scrape...")
+    logger.info("Running scheduled scrape...")
     db = SessionLocal()
     scrape_job(db)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Starting up...")
+    logger.info("Starting up...")
     scheduler.add_job(scheduled_scrape, 'interval', minutes=15)
     scheduler.start()
-    print("Scheduler started.")
+    logger.info("Scheduler started.")
     yield
-    print("Shutting down...")
+    logger.info("Shutting down...")
     scheduler.shutdown()
 
 app = FastAPI(title="Discounted Udemy Courses API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"], # Allow all origins for debugging NetworkError
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,18 +50,16 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    print(f"Incoming request: {request.method} {request.url} from {request.client.host}")
-    msg = f"Headers: {request.headers}"
-    print(msg)
+    logger.info(f"Incoming request: {request.method} {request.url} from {request.client.host}")
     response = await call_next(request)
-    print(f"Response status: {response.status_code}")
+    logger.info(f"Response status: {response.status_code}")
     return response
 
 def scrape_job(db: Session):
-    print("Starting background scrape...")
+    logger.info("Starting background scrape...")
     try:
         results = get_all_courses()
-        print(f"Scrape complete. Found {len(results)} courses. Saving to DB...")
+        logger.info(f"Scrape complete. Found {len(results)} courses. Saving to DB...")
         
         for course_data in results:
             # Use upsert logic (Requires Postgres)
@@ -72,9 +77,9 @@ def scrape_job(db: Session):
                 db.add(new_course)
         
         db.commit()
-        print("Database updated.")
+        logger.info("Database updated.")
     except Exception as e:
-        print(f"Scrape failed: {e}")
+        logger.error(f"Scrape failed: {e}")
         db.rollback()
     finally:
         db.close()
