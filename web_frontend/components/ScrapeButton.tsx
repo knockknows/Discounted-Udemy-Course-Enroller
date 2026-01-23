@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Logger } from "@/lib/logger";
 
 export default function ScrapeButton() {
     const [loading, setLoading] = useState(false);
@@ -8,29 +9,28 @@ export default function ScrapeButton() {
     const handleScrape = async () => {
         setLoading(true);
         const resolvedApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        console.log("ScrapeButton: Initiating scrape...");
-        console.log("ScrapeButton: NEXT_PUBLIC_API_URL env var:", process.env.NEXT_PUBLIC_API_URL);
-        console.log("ScrapeButton: Resolved API URL:", resolvedApiUrl);
+
+        Logger.info("ScrapeButton", "Initiating scrape", {
+            env_url: process.env.NEXT_PUBLIC_API_URL,
+            resolved_url: resolvedApiUrl
+        });
 
         try {
             const response = await fetch(`${resolvedApiUrl}/scrape`, {
                 method: "POST",
             });
-            console.log("ScrapeButton: Response status:", response.status);
+
+            Logger.info("ScrapeButton", "Response received", { status: response.status });
 
             if (response.ok) {
                 alert("Scraping started! Refresh the page in a few minutes.");
             } else {
                 const errorText = await response.text();
-                console.error("ScrapeButton: Backend returned error:", errorText);
+                Logger.error("ScrapeButton", "Backend returned error", { status: response.status, body: errorText });
                 alert(`Failed to start scraping. Status: ${response.status}`);
             }
         } catch (error: any) {
-            console.error("ScrapeButton: Fetch Error Details:", {
-                message: error.message,
-                cause: error.cause,
-                stack: error.stack
-            });
+            Logger.error("ScrapeButton", "Fetch failed", error);
             alert(`Error connecting to backend: ${error.message}. Check console for details.`);
         } finally {
             setLoading(false);
