@@ -1,5 +1,6 @@
 import { fetchCourses } from "@/lib/api";
 import CourseCard from "@/components/CourseCard";
+import ScrapeButton from "@/components/ScrapeButton";
 import { Course } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function Home() {
           <h1 className="text-3xl font-bold text-gray-900">Discounted Udemy Courses</h1>
           <p className="text-gray-600 mt-2">Found {count} free courses available now</p>
         </div>
+        <ScrapeButton />
       </header>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

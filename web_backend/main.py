@@ -1,23 +1,45 @@
 from fastapi import FastAPI, BackgroundTasks, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from typing import List, Optional
 import uvicorn
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 import models
-from database import engine, get_db
+from database import engine, get_db, SessionLocal
 from scraper_wrapper import get_all_courses
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
 
+# Initialize scheduler
+scheduler = AsyncIOScheduler()
+
+def scheduled_scrape():
+    print("Running scheduled scrape...")
+    db = SessionLocal()
+    scrape_job(db)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting up...")
+    scheduler.add_job(scheduled_scrape, 'interval', minutes=15)
+    scheduler.start()
+    print("Scheduler started.")
     yield
     print("Shutting down...")
+    scheduler.shutdown()
 
 app = FastAPI(title="Discounted Udemy Courses API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def scrape_job(db: Session):
     print("Starting background scrape...")
