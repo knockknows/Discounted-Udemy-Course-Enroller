@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -10,7 +10,11 @@ COPY web_backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
+# Copy source code
 COPY . .
+
+# Set PYTHONPATH to include web_backend directory
+ENV PYTHONPATH="/app/web_backend:${PYTHONPATH}"
 
 # Expose port
 EXPOSE 8000
