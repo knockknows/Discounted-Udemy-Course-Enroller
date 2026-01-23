@@ -32,6 +32,8 @@ services:
     build:
       context: .
       dockerfile: web_frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     restart: always
     ports:
       - "3000:3000"
