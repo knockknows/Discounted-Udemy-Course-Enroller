@@ -1,6 +1,6 @@
 HOST="152.67.201.45"
 USER="knockknows"
-KEY="temp_deploy_key"
+KEY="deploy_key_v2"
 
 ssh -i $KEY -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
     cd /home/knockknows/Discounted-Udemy-Course-Enroller || echo "Directory not found, skipping down"
