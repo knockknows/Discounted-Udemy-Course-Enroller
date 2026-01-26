@@ -142,10 +142,29 @@ def read_root():
     return {"message": "Welcome to Discounted Udemy Courses API", "endpoints": ["/courses", "/scrape"]}
 
 @app.get("/courses")
-def read_courses(page: int = 1, limit: int = 20, db: Session = Depends(get_db)):
+def read_courses(
+    page: int = 1, 
+    limit: int = 20, 
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    show_free_only: bool = False,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Course)
+
+    if search:
+        query = query.filter(models.Course.title.ilike(f"%{search}%"))
+    
+    if category and category != "All":
+        query = query.filter(models.Course.category == category)
+        
+    if show_free_only:
+        query = query.filter(models.Course.is_free == True)
+
+    total_count = query.count()
+    
     offset = (page - 1) * limit
-    total_count = db.query(models.Course).count()
-    courses = db.query(models.Course).order_by(models.Course.created_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
+    courses = query.order_by(models.Course.created_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
     
     return {
         "count": total_count,

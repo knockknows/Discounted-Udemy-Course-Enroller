@@ -3,9 +3,24 @@ import { CoursesResponse } from "@/types";
 // Prioritize internal URL for server-side fetches (Docker), fallback to public URL
 const API_BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export async function fetchCourses(page: number = 1, limit: number = 20): Promise<CoursesResponse> {
+export async function fetchCourses(
+    page: number = 1,
+    limit: number = 20,
+    search: string = "",
+    category: string = "All",
+    showFreeOnly: boolean = false
+): Promise<CoursesResponse> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        show_free_only: showFreeOnly.toString() // API expects snake_case
+    });
+
+    if (search) params.append("search", search);
+    if (category && category !== "All") params.append("category", category);
+
     try {
-        const res = await fetch(`${API_BASE_URL}/courses?page=${page}&limit=${limit}`, {
+        const res = await fetch(`${API_BASE_URL}/courses?${params.toString()}`, {
             cache: "no-store", // Ensure fresh data
         });
 

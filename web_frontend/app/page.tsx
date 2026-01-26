@@ -7,13 +7,17 @@ export const dynamic = "force-dynamic";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const resolvedParams = await searchParams;
-  const page = typeof resolvedParams.page === 'string' ? parseInt(resolvedParams.page) : 1;
-  const limit = 24; // Default limit
-  const { courses, count } = await fetchCourses(page, limit);
-  const totalPages = Math.ceil(count / limit);
+  const page = Number(searchParams.page) || 1;
+  const search = typeof searchParams.search === "string" ? searchParams.search : "";
+  const category = typeof searchParams.category === "string" ? searchParams.category : "All";
+
+  // Default to true (Free Only) if not specified, unless explicitly "false"
+  const showFreeOnly = searchParams.show_free_only === "false" ? false : true;
+
+  const { courses, count } = await fetchCourses(page, 20, search, category, showFreeOnly);
+  const totalPages = Math.ceil(count / 20);
 
   return (
     <main className="min-h-screen bg-gray-50 p-8 font-sans">
