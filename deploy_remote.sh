@@ -16,8 +16,8 @@ ssh -i $KEY -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
     
     echo "Building and Starting services..."
     # Wipe database as requested
-    echo "Resetting database (docker compose down -v)..."
-    docker compose down -v
+    echo "Restarting services (keeping data)..."
+    docker compose down
     
     docker compose up --build -d
     echo "Deployment Complete."

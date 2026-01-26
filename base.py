@@ -386,6 +386,7 @@ class Scraper:
     def append_to_list(self, title: str, link: str, **kwargs):
         target = getattr(self, f"{inspect.stack()[1].function}_data")
         course = Course(title, link, **kwargs)
+        logger.info(f"Found Coupon: {title} | {link}")
         target.append(course)
 
     def fetch_page(self, url: str, headers: dict = None) -> requests.Response:
