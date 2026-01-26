@@ -2,8 +2,12 @@ from fastapi import FastAPI, BackgroundTasks, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import sys
+import os
 from loguru import logger
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+# Add parent directory to path to import base.py
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from base import RedisSink
 from typing import List, Optional
 import uvicorn
 from contextlib import asynccontextmanager
@@ -67,6 +71,10 @@ except Exception as e:
 # Init logger
 logger.remove()
 logger.add(sys.stderr, format="{time} {level} {message}", level="INFO", serialize=True)
+try:
+    logger.add(RedisSink(), level="INFO", format="{time} {level} {message}")
+except Exception as e:
+    logger.error(f"Failed to add Redis Sink: {e}")
 
 # Initialize scheduler
 scheduler = AsyncIOScheduler()
