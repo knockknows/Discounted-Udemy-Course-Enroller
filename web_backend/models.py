@@ -17,9 +17,9 @@ class Course(Base):
     category = Column(String, nullable=True, index=True)
     thumbnail_url = Column(String, nullable=True)
     discount_info = Column(String, nullable=True)
-    expiration_date = Column(DateTime, nullable=True)
     rating = Column(String, nullable=True) # Storing as string to keep it simple or Float
     total_reviews = Column(Integer, nullable=True)
+    description = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

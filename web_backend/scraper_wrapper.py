@@ -93,7 +93,8 @@ def get_all_courses():
             "discount_info": getattr(course, "discount_info", None),
             "expiration_date": getattr(course, "expiration_date", None),
             "rating": getattr(course, "rating", None),
-            "total_reviews": getattr(course, "total_reviews", None)
+            "total_reviews": getattr(course, "total_reviews", None),
+            "description": getattr(course, "description", None)
         })
     
     return results

@@ -176,7 +176,17 @@ class Course:
             if og_image:
                 self.thumbnail_url = og_image["content"]
 
-            # 3. Category
+            # 3. Description
+            # <meta property="og:description" content="...">
+            og_desc = soup.find("meta", property="og:description")
+            if og_desc:
+                self.description = og_desc["content"]
+            else:
+                meta_desc = soup.find("meta", {"name": "description"})
+                if meta_desc:
+                    self.description = meta_desc["content"]
+
+            # 4. Category
             # <div class="ud-breadcrumb"> ... </div>
             # or data-purpose="breadcrumb"
             # It's complex, often in JSON.

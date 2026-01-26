@@ -73,6 +73,12 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                     </div>
                 )}
 
+                {course.description && (
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-3">
+                        {course.description}
+                    </p>
+                )}
+
                 <div className="text-sm text-gray-500 mb-4 space-y-1">
                     {course.coupon_code ? (
                         <div className="flex items-center gap-1">

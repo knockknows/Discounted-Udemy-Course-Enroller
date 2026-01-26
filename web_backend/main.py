@@ -40,6 +40,9 @@ def ensure_schema_updates():
         if 'total_reviews' not in columns:
             logger.info("Adding 'total_reviews' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN total_reviews INTEGER"))
+        if 'description' not in columns:
+            logger.info("Adding 'description' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN description TEXT"))
         conn.commit()
     logger.info("Schema check complete.")
 
@@ -116,6 +119,7 @@ def scrape_job(db: Session):
                 existing.expiration_date = course_data.get("expiration_date")
                 existing.rating = course_data.get("rating")
                 existing.total_reviews = course_data.get("total_reviews")
+                existing.description = course_data.get("description")
                 
                 # updated_at handled by onupdate
             else:

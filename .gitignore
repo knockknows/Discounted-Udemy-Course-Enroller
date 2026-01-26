@@ -9,3 +9,4 @@ build/
 .DS_Store
 oci_knockknows
 oci_knockknows.pub
+temp_deploy_key

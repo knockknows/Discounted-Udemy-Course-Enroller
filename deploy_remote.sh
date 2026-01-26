@@ -15,6 +15,10 @@ ssh -i $KEY -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
     cd /home/knockknows/Discounted-Udemy-Course-Enroller
     
     echo "Building and Starting services..."
+    # Wipe database as requested
+    echo "Resetting database (docker compose down -v)..."
+    docker compose down -v
+    
     docker compose up --build -d
     echo "Deployment Complete."
 EOF

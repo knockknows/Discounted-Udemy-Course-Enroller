@@ -11,6 +11,7 @@ export interface Course {
     expiration_date?: string | null;
     rating?: string | null;
     total_reviews?: number | null;
+    description?: string | null;
 }
 
 export interface CoursesResponse {
