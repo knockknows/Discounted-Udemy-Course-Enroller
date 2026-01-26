@@ -50,7 +50,14 @@ def get_all_courses():
     
     # Enrichment
     logger.info("Enriching course data from Udemy...")
-    udemy_scraper = cloudscraper.create_scraper()
+    # Use desktop chrome emulation to avoid 403
+    udemy_scraper = cloudscraper.create_scraper(
+        browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        }
+    )
     
     def enrich_course(course):
         if "udemy.com" in course.url:

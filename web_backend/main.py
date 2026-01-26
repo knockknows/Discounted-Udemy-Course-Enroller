@@ -182,6 +182,7 @@ def read_courses(
         query = query.filter(models.Course.is_free == True)
 
     total_count = query.count()
+    logger.info(f"API /courses: search='{search}', category='{category}', free={show_free_only} -> Found {total_count} records")
     
     offset = (page - 1) * limit
     courses = query.order_by(models.Course.created_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
