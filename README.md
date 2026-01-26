@@ -15,15 +15,15 @@ graph TD
     end
 
     subgraph "Backend Services"
-        Scheduler[APScheduler (15m Interval)]
+        Scheduler["APScheduler (15m Interval)"]
         API[FastAPI Server]
-        Scraper[Scraper Logic (base.py)]
+        Scraper["Scraper Logic (base.py)"]
         Enricher[Metadata Enricher]
     end
 
     subgraph "Data Persistence"
         DB[(PostgreSQL)]
-        Redis[(Redis Cache/Logs)]
+        Redis[("Redis Cache/Logs")]
     end
 
     subgraph "Frontend"
