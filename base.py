@@ -364,12 +364,12 @@ class Scraper:
                 logger.info("Acquired scraper lock.")
 
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.scraper_dict)) as executor:
-                for site in self.scraper_dict:
-                    executor.submit(target if target else getattr(self, self.scraper_dict[site]))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.sites)) as executor:
+                for site in self.sites:
+                    executor.submit(target if target else getattr(self, scraper_dict[site]))
 
-            for site in self.scraper_dict:
-                data = getattr(self, f"{self.scraper_dict[site]}_data")
+            for site in self.sites:
+                data = getattr(self, f"{scraper_dict[site]}_data")
                 scraped_data.update(data)
                 
         finally:
