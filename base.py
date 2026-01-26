@@ -510,11 +510,13 @@ class Scraper:
                 title = item.h5.string
                 content = self.fetch_page(item.a["href"]).content
                 soup = self.parse_html(content)
-                link = soup.find(
+                link_tag = soup.find(
                     "a",
                     {"class": "masterstudy-button-affiliate__link"},
-                )["href"]
-                return title, link
+                )
+                if link_tag:
+                    return title, link_tag["href"]
+                return title, ""
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
                 future_course_details = [
