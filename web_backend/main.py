@@ -36,7 +36,13 @@ def ensure_schema_updates():
             conn.execute(text("ALTER TABLE courses ADD COLUMN discount_info VARCHAR"))
         if 'expiration_date' not in columns:
             logger.info("Adding 'expiration_date' column...")
-            conn.execute(text("ALTER TABLE courses ADD COLUMN expiration_date TIMESTAMP"))
+            conn.execute(text("ALTER TABLE courses ADD COLUMN expiration_date VARCHAR"))
+        else:
+            # Ensure it is VARCHAR
+            try:
+                conn.execute(text("ALTER TABLE courses ALTER COLUMN expiration_date TYPE VARCHAR"))
+            except Exception as e:
+                logger.warning(f"Could not alter expiration_date type: {e}")
         if 'rating' not in columns:
             logger.info("Adding 'rating' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN rating VARCHAR"))
