@@ -138,7 +138,7 @@ def read_root():
 def read_courses(page: int = 1, limit: int = 20, db: Session = Depends(get_db)):
     offset = (page - 1) * limit
     total_count = db.query(models.Course).count()
-    courses = db.query(models.Course).order_by(models.Course.created_at.desc()).offset(offset).limit(limit).all()
+    courses = db.query(models.Course).order_by(models.Course.created_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
     
     return {
         "count": total_count,
