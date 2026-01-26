@@ -97,6 +97,7 @@ def get_all_courses():
             "description": getattr(course, "description", None)
         })
     
+    logger.info(f"Enrichment complete. Total courses in results: {len(results)}")
     return results
 
 if __name__ == "__main__":

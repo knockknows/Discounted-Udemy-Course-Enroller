@@ -103,7 +103,11 @@ def scrape_job(db: Session):
         results = get_all_courses()
         logger.info(f"Scrape complete. Found {len(results)} courses. Saving to DB...")
         
+        count_new = 0
+        count_updated = 0
+        
         for course_data in results:
+            # logger.info(f"Processing: {course_data.get('title')} | {course_data.get('url')}")
             # Use upsert logic (Requires Postgres)
             # For simplicity with SQLAlchemy ORM generic plain: check exists then update
             existing = db.query(models.Course).filter(models.Course.url == course_data["url"]).first()
@@ -112,7 +116,6 @@ def scrape_job(db: Session):
                 existing.site = course_data["site"]
                 existing.coupon_code = course_data["coupon_code"]
                 existing.is_free = course_data["is_free"]
-                existing.price = course_data["price"]
                 existing.price = course_data["price"]
                 
                 # Update new fields
@@ -124,13 +127,16 @@ def scrape_job(db: Session):
                 existing.total_reviews = course_data.get("total_reviews")
                 existing.description = course_data.get("description")
                 
+                count_updated += 1
                 # updated_at handled by onupdate
             else:
                 new_course = models.Course(**course_data)
                 db.add(new_course)
+                count_new += 1
         
+        logger.info(f"Committing to DB... New: {count_new}, Updated: {count_updated}")
         db.commit()
-        logger.info("Database updated.")
+        logger.info("Database commit successful.")
     except Exception as e:
         logger.error(f"Scrape failed: {e}")
         db.rollback()
