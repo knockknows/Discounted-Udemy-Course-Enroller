@@ -332,6 +332,15 @@ class Scraper:
             logger.info(f"Scraping site: {site}")
             t = threading.Thread(
                 target=target,
+                args=(site,),
+                daemon=True,
+            )
+            t.start()
+            threads.append(t)
+            time.sleep(0.2)
+        
+        for t in threads:
+            t.join()
         
         # Redis Locking
         redis_client = None
