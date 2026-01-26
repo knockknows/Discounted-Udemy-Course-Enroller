@@ -25,6 +25,11 @@ export default async function Home({
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Discounted Udemy Courses</h1>
           <p className="text-gray-600 mt-2">Found {count} free courses available now</p>
+          {/* DEBUG: Remove after fixing */}
+          <div className="text-xs text-red-500 font-mono mt-2">
+            DEBUG: fetchCourses returned {courses?.length || 0} items. Count: {count}.
+            Params: search={search}, cat={category}, free={showFreeOnly.toString()}
+          </div>
         </div>
         <ScrapeButton />
       </header>
