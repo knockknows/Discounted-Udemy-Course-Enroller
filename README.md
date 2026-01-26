@@ -11,7 +11,7 @@ The application follows a microservices-based architecture orchestrated via Dock
 graph TD
     subgraph "External Sources"
         Sites["Coupon Sites (Real Discount, etc.)"]
-        Udemy[Udemy.com (Metadata)]
+        Udemy["Udemy.com (Metadata)"]
     end
 
     subgraph "Backend Services"
