@@ -9,6 +9,8 @@ export interface Course {
     thumbnail_url?: string | null;
     discount_info?: string | null;
     expiration_date?: string | null;
+    rating?: string | null;
+    total_reviews?: number | null;
 }
 
 export interface CoursesResponse {

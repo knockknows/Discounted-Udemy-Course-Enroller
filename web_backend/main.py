@@ -34,6 +34,12 @@ def ensure_schema_updates():
         if 'expiration_date' not in columns:
             logger.info("Adding 'expiration_date' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN expiration_date TIMESTAMP"))
+        if 'rating' not in columns:
+            logger.info("Adding 'rating' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN rating VARCHAR"))
+        if 'total_reviews' not in columns:
+            logger.info("Adding 'total_reviews' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN total_reviews INTEGER"))
         conn.commit()
     logger.info("Schema check complete.")
 
@@ -108,6 +114,8 @@ def scrape_job(db: Session):
                 existing.thumbnail_url = course_data.get("thumbnail_url")
                 existing.discount_info = course_data.get("discount_info")
                 existing.expiration_date = course_data.get("expiration_date")
+                existing.rating = course_data.get("rating")
+                existing.total_reviews = course_data.get("total_reviews")
                 
                 # updated_at handled by onupdate
             else:
@@ -127,11 +135,15 @@ def read_root():
     return {"message": "Welcome to Discounted Udemy Courses API", "endpoints": ["/courses", "/scrape"]}
 
 @app.get("/courses")
-def read_courses(limit: int = 100, db: Session = Depends(get_db)):
-    courses = db.query(models.Course).order_by(models.Course.created_at.desc()).limit(limit).all()
-    # Convert to list of dicts or rely on FastAPI response model, manual for now
+def read_courses(page: int = 1, limit: int = 20, db: Session = Depends(get_db)):
+    offset = (page - 1) * limit
+    total_count = db.query(models.Course).count()
+    courses = db.query(models.Course).order_by(models.Course.created_at.desc()).offset(offset).limit(limit).all()
+    
     return {
-        "count": len(courses),
+        "count": total_count,
+        "page": page,
+        "limit": limit,
         "courses": courses
     }
 

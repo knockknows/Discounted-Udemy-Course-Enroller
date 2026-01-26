@@ -2,6 +2,9 @@ import sys
 import os
 import threading
 import time
+import concurrent.futures
+import cloudscraper
+from bs4 import BeautifulSoup
 
 # Add parent directory to path to import base.py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,9 +48,39 @@ def get_all_courses():
     logger.info("Starting scrape job...")
     courses = scraper.get_scraped_courses(target=thread_starter)
     
+    # Enrichment
+    logger.info("Enriching course data from Udemy...")
+    udemy_scraper = cloudscraper.create_scraper()
+    
+    def enrich_course(course):
+        if "udemy.com" in course.url:
+            try:
+                # Basic sleep to be nice
+                time.sleep(1) # Simple static sleep
+                
+                resp = udemy_scraper.get(course.url)
+                if resp.status_code == 200:
+                    soup = BeautifulSoup(resp.content, "html.parser")
+                    course.set_udemy_metadata(soup)
+                else:
+                    logger.warning(f"Failed to fetch Udemy page {course.url}: {resp.status_code}")
+            except Exception as e:
+                logger.error(f"Error enriching {course.url}: {e}")
+        return course
+
+    enriched_courses = []
+    # Limit concurrency to 3
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        future_to_course = {executor.submit(enrich_course, c): c for c in courses}
+        for future in concurrent.futures.as_completed(future_to_course):
+            try:
+                enriched_courses.append(future.result())
+            except Exception as e:
+                logger.error(f"Enrichment task failed: {e}")
+
     # Convert Course objects to dicts for JSON serialization
     results = []
-    for course in courses:
+    for course in enriched_courses:
         results.append({
             "title": course.title,
             "url": course.url,
@@ -58,7 +91,9 @@ def get_all_courses():
             "category": getattr(course, "category", None),
             "thumbnail_url": getattr(course, "thumbnail_url", None),
             "discount_info": getattr(course, "discount_info", None),
-            "expiration_date": getattr(course, "expiration_date", None)
+            "expiration_date": getattr(course, "expiration_date", None),
+            "rating": getattr(course, "rating", None),
+            "total_reviews": getattr(course, "total_reviews", None)
         })
     
     return results

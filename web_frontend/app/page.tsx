@@ -4,8 +4,15 @@ import CourseGrid from "@/components/CourseGrid";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const { courses, count } = await fetchCourses();
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  const page = typeof searchParams.page === 'string' ? parseInt(searchParams.page) : 1;
+  const limit = 24; // Default limit
+  const { courses, count } = await fetchCourses(page, limit);
+  const totalPages = Math.ceil(count / limit);
 
   return (
     <main className="min-h-screen bg-gray-50 p-8 font-sans">
@@ -18,7 +25,12 @@ export default async function Home() {
       </header>
 
       <div className="max-w-7xl mx-auto">
-        <CourseGrid initialCourses={courses} />
+        <CourseGrid
+          initialCourses={courses}
+          totalCount={count}
+          currentPage={page}
+          totalPages={totalPages}
+        />
       </div>
     </main>
   );

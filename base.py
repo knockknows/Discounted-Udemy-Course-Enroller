@@ -161,6 +161,68 @@ class Course:
         params = parse_qs(urlsplit(self.url).query)
         self.coupon_code = params.get("couponCode", [None])[0]
 
+    def set_udemy_metadata(self, soup):
+        """Extract metadata from Udemy Course Landing Page soup."""
+        try:
+            # 1. Title
+            # Usually in <h1 class="clp-lead__title" ...>
+            h1 = soup.find("h1", {"data-purpose": "lead-title"})
+            if h1:
+                self.title = h1.text.strip()
+            
+            # 2. Thumbnail
+            # <meta property="og:image" content="...">
+            og_image = soup.find("meta", property="og:image")
+            if og_image:
+                self.thumbnail_url = og_image["content"]
+
+            # 3. Category
+            # <div class="ud-breadcrumb"> ... </div>
+            # or data-purpose="breadcrumb"
+            # It's complex, often in JSON.
+            # Try parsing the big JSON blob: data-module-args on various components.
+            # But simple scraping:
+            # Look for schema.org data
+            schema_tag = soup.find("script", type="application/ld+json")
+            if schema_tag:
+                try:
+                    data = json.loads(schema_tag.text)
+                    # data is often a list of objects or single object
+                    if isinstance(data, list):
+                        for item in data:
+                            if item.get("@type") == "Course":
+                                if "aggregateRating" in item:
+                                    self.rating = str(item["aggregateRating"].get("ratingValue"))
+                                    self.total_reviews = int(item["aggregateRating"].get("reviewCount", 0))
+                                if "image" in item:
+                                    self.thumbnail_url = item["image"]
+                                if "name" in item:
+                                    self.title = item["name"]
+                                # Category might be in 'articleSection' or separate BreadcrumbList
+                            if item.get("@type") == "BreadcrumbList":
+                                # Extract last item name as category
+                                if "itemListElement" in item:
+                                    items = item["itemListElement"]
+                                    if len(items) > 1:
+                                        self.category = items[-2]["item"]["name"] # 2nd to last usually 'Category', last is course itself or Subcategory
+                                        
+                except Exception as e:
+                    logger.error(f"Error parsing LD+JSON: {e}")
+
+            # Fallback for Rating/Reviews if not in LD+JSON
+            # <span data-purpose="rating-number">4.5</span>
+            if not self.rating:
+                rating_tag = soup.find("span", {"data-purpose": "rating-number"})
+                if rating_tag:
+                    self.rating = rating_tag.text.strip()
+            
+            # Reviews count
+            # (12,345 ratings)
+            # anchor with data-purpose="rating-enrollment" usually has textual "X ratings"
+            
+        except Exception as e:
+            logger.error(f"Error extracting Udemy metadata: {e}")
+
     def __str__(self):
         return f"{self.title} - {self.url}"
 

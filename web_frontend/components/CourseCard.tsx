@@ -56,6 +56,23 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                     </a>
                 </h3>
 
+                {/* Rating Info */}
+                {(course.rating || course.total_reviews) && (
+                    <div className="flex items-center gap-1 mb-2">
+                        {course.rating && (
+                            <div className="flex items-center text-yellow-500">
+                                <span className="font-bold text-sm">{parseFloat(course.rating).toFixed(1)}</span>
+                                <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+                                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                                </svg>
+                            </div>
+                        )}
+                        {course.total_reviews && (
+                            <span className="text-xs text-gray-400">({course.total_reviews.toLocaleString()})</span>
+                        )}
+                    </div>
+                )}
+
                 <div className="text-sm text-gray-500 mb-4 space-y-1">
                     {course.coupon_code ? (
                         <div className="flex items-center gap-1">
