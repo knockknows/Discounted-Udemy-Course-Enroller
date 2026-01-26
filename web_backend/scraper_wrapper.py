@@ -54,7 +54,11 @@ def get_all_courses():
             "site": course.site,
             "coupon_code": course.coupon_code,
             "is_free": course.is_free,
-            "price": str(course.price) if course.price else None
+            "price": str(course.price) if course.price else None,
+            "category": getattr(course, "category", None),
+            "thumbnail_url": getattr(course, "thumbnail_url", None),
+            "discount_info": getattr(course, "discount_info", None),
+            "expiration_date": getattr(course, "expiration_date", None)
         })
     
     return results

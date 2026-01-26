@@ -87,7 +87,7 @@ def resource_path(relative_path):
 
 
 class Course:
-    def __init__(self, title: str, url: str, site: str = None):
+    def __init__(self, title: str, url: str, site: str = None, category=None, thumbnail_url=None, discount_info=None, expiration_date=None):
         self.title = title
         self.site = site
         self.url = None
@@ -101,9 +101,15 @@ class Course:
         self.is_excluded = False
 
         self.price = None
+        
+        # New Metadata
+        self.category = category
+        self.thumbnail_url = thumbnail_url
+        self.discount_info = discount_info
+        self.expiration_date = expiration_date
+
         self.instructors = []
         self.language = None
-        self.category = None
         self.rating = None
         self.last_update = None
 
@@ -243,9 +249,9 @@ class Scraper:
         logger.info(f"Scraping finished. Found {len(scraped_data)} unique courses.")
         return list(scraped_data)
 
-    def append_to_list(self, title: str, link: str):
+    def append_to_list(self, title: str, link: str, **kwargs):
         target = getattr(self, f"{inspect.stack()[1].function}_data")
-        course = Course(title, link)
+        course = Course(title, link, **kwargs)
         target.append(course)
 
     def fetch_page(self, url: str, headers: dict = None) -> requests.Response:
@@ -340,7 +346,19 @@ class Scraper:
                 ).content
                 soup = self.parse_html(content)
                 link = soup.find("div", {"class": "ui segment"}).a["href"]
-                return title, link
+                
+                # Extract new fields
+                thumbnail_url = None
+                category = None
+                
+                # Category often in breadcrumb
+                breadcrumb = soup.find("div", {"class": "ui breadcrumb"})
+                if breadcrumb:
+                    cats = breadcrumb.find_all("a", {"class": "section"})
+                    if len(cats) > 1:
+                        category = cats[1].text.strip()
+                
+                return title, link, category, thumbnail_url
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                 future_course_details = [
@@ -350,10 +368,10 @@ class Scraper:
                 for i, future in enumerate(
                     concurrent.futures.as_completed(future_course_details)
                 ):
-                    title, link = future.result()
+                    title, link, category, thumbnail_url = future.result()
                     if "udemy.com" in link:
                         link = self.cleanup_link(link)
-                        self.append_to_list(title, link)
+                        self.append_to_list(title, link, category=category, thumbnail_url=thumbnail_url)
                     self.set_attr("progress", i + 1)
 
         except:
@@ -385,10 +403,15 @@ class Scraper:
             def _fetch_course_details(item):
                 """Helper method to fetch course details"""
                 title = item.img["alt"]
+                thumbnail_url = item.img.get("src")
                 link = requests.get(
                     f"https://www.udemyfreebies.com/out/{item['href'].split('/')[4]}"
                 ).url
-                return title, link
+                
+                # Category/Discount not easily available on listing page without deep dive
+                category = "Freebies" 
+                
+                return title, link, thumbnail_url, category
 
             self.set_attr("length", len(all_items))
 
@@ -399,10 +422,10 @@ class Scraper:
                 for i, future in enumerate(
                     concurrent.futures.as_completed(future_course_details)
                 ):
-                    title, link = future.result()
+                    title, link, thumbnail_url, category = future.result()
                     if "udemy.com" in link:
                         link = self.cleanup_link(link)
-                        self.append_to_list(title, link)
+                        self.append_to_list(title, link, thumbnail_url=thumbnail_url, category=category)
                     else:
                         logger.error(f"Unknown link format: {link}")
                     self.set_attr("progress", i + 1)
@@ -471,9 +494,16 @@ class Scraper:
                     continue
                 title: str = item["name"]
                 link: str = item["url"]
+                
+                thumbnail_url = item.get("image")
+                category = item.get("category")
+                discount_info = f"{item.get('discount_percentage', 0)}% OFF"
+                # Expiry often in 'sale_end'
+                expiration_date = item.get("sale_end") # Raw string, might need parsing later, keeping as is for now
+
                 link = self.cleanup_link(link)
                 if link:
-                    self.append_to_list(title, link)
+                    self.append_to_list(title, link, thumbnail_url=thumbnail_url, category=category, discount_info=discount_info, expiration_date=expiration_date)
 
         except:
             self.handle_exception()
@@ -510,13 +540,26 @@ class Scraper:
                 title = item.h5.string
                 content = self.fetch_page(item.a["href"]).content
                 soup = self.parse_html(content)
+                
+                # Thumbnail
+                thumbnail_url = None
+                img = soup.find("img", {"class": "wp-post-image"})
+                if img:
+                    thumbnail_url = img.get("src")
+                    
+                # Category
+                category = None
+                cat_tag = soup.find("div", {"class": "post_category"})
+                if cat_tag:
+                    category = cat_tag.text.strip()
+                    
                 link_tag = soup.find(
                     "a",
                     {"class": "masterstudy-button-affiliate__link"},
                 )
                 if link_tag:
-                    return title, link_tag["href"]
-                return title, ""
+                    return title, link_tag["href"], thumbnail_url, category
+                return title, "", thumbnail_url, category
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
                 future_course_details = [
@@ -525,10 +568,10 @@ class Scraper:
                 for i, future in enumerate(
                     concurrent.futures.as_completed(future_course_details)
                 ):
-                    title, link = future.result()
+                    title, link, thumbnail_url, category = future.result()
                     if "udemy.com" in link:
                         link = self.cleanup_link(link)
-                        self.append_to_list(title, link)
+                        self.append_to_list(title, link, thumbnail_url=thumbnail_url, category=category)
                     else:
                         logger.error(f"Unknown link format: {link}")
                     self.set_attr("progress", i + 1)

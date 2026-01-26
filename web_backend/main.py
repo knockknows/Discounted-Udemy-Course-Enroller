@@ -11,10 +11,40 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 import models
 from database import engine, get_db, SessionLocal
+from database import engine, get_db, SessionLocal
 from scraper_wrapper import get_all_courses
+from sqlalchemy import text, inspect
+
+def ensure_schema_updates():
+    """Check for missing columns and add them if necessary."""
+    logger.info("Checking database schema...")
+    inspector = inspect(engine)
+    columns = [col['name'] for col in inspector.get_columns('courses')]
+    
+    with engine.connect() as conn:
+        if 'category' not in columns:
+            logger.info("Adding 'category' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN category VARCHAR"))
+        if 'thumbnail_url' not in columns:
+            logger.info("Adding 'thumbnail_url' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN thumbnail_url VARCHAR"))
+        if 'discount_info' not in columns:
+            logger.info("Adding 'discount_info' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN discount_info VARCHAR"))
+        if 'expiration_date' not in columns:
+            logger.info("Adding 'expiration_date' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN expiration_date TIMESTAMP"))
+        conn.commit()
+    logger.info("Schema check complete.")
 
 # Create tables
+# Create tables
 models.Base.metadata.create_all(bind=engine)
+# Run schema updates (for existing installs)
+try:
+    ensure_schema_updates()
+except Exception as e:
+    logger.error(f"Schema update failed: {e}")
 
 # Init logger
 logger.remove()
@@ -71,6 +101,14 @@ def scrape_job(db: Session):
                 existing.coupon_code = course_data["coupon_code"]
                 existing.is_free = course_data["is_free"]
                 existing.price = course_data["price"]
+                existing.price = course_data["price"]
+                
+                # Update new fields
+                existing.category = course_data.get("category")
+                existing.thumbnail_url = course_data.get("thumbnail_url")
+                existing.discount_info = course_data.get("discount_info")
+                existing.expiration_date = course_data.get("expiration_date")
+                
                 # updated_at handled by onupdate
             else:
                 new_course = models.Course(**course_data)
@@ -99,8 +137,9 @@ def read_courses(limit: int = 100, db: Session = Depends(get_db)):
 
 @app.post("/scrape")
 def trigger_scrape(background_tasks: BackgroundTasks):
-    # We need a new session for the background task
-    db = next(get_db()) 
+    # Use SessionLocal() to create a dedicated session for the background task
+    # avoiding dependency injection context issues
+    db = SessionLocal()
     background_tasks.add_task(scrape_job, db)
     return {"message": "Scraping started in background"}
 

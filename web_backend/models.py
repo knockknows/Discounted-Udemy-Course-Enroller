@@ -12,6 +12,13 @@ class Course(Base):
     coupon_code = Column(String, nullable=True)
     is_free = Column(Boolean, default=False)
     price = Column(String, nullable=True)
+    
+    # New Fields
+    category = Column(String, nullable=True, index=True)
+    thumbnail_url = Column(String, nullable=True)
+    discount_info = Column(String, nullable=True)
+    expiration_date = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
