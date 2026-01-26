@@ -19,3 +19,23 @@ export async function fetchCourses(page: number = 1, limit: number = 20): Promis
         return { courses: [], count: 0 };
     }
 }
+
+export async function fetchLogs(limit: number = 100): Promise<{ logs: string[], error?: string }> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/admin/logs?limit=${limit}`, { cache: "no-store" });
+        if (!res.ok) throw new Error("Failed to fetch logs");
+        return await res.json();
+    } catch (error) {
+        return { logs: [], error: String(error) };
+    }
+}
+
+export async function fetchStatus(): Promise<{ is_running: boolean, error?: string }> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/admin/status`, { cache: "no-store" });
+        if (!res.ok) throw new Error("Failed to fetch status");
+        return await res.json();
+    } catch (error) {
+        return { is_running: false, error: String(error) };
+    }
+}

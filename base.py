@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, unquote, urlparse, urlsplit, urlunparse
 import cloudscraper
 import requests
 import rookiepy
+import redis
 from bs4 import BeautifulSoup as bs
 from loguru import logger
 from rich import print
@@ -49,6 +50,35 @@ log_file_path = get_user_data_path("duce.log")
 
 logger.remove()
 logger.add(log_file_path, rotation="10 MB", level="INFO", mode="w")
+
+# Redis Logging
+class RedisSink:
+    def __init__(self):
+        self.redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        self.client = None
+        try:
+            self.client = redis.from_url(self.redis_url, socket_connect_timeout=1)
+        except:
+            pass # Fail silently if no redis
+
+    def write(self, message):
+        if self.client:
+            try:
+                # message is a string record
+                # We can push to a list "log_channel"
+                self.client.rpush("log_channel", message)
+                # Trim list to keep last 1000 logs
+                self.client.ltrim("log_channel", -1000, -1)
+                # Also publish for real-time streaming
+                self.client.publish("log_stream", message)
+            except:
+                pass
+
+try:
+    logger.add(RedisSink(), level="INFO")
+except Exception as e:
+    print(f"Failed to add Redis Sink: {e}")
+
 logger.info(f"Program started - {VERSION}")
 
 scraper_dict: dict = {
@@ -302,21 +332,44 @@ class Scraper:
             logger.info(f"Scraping site: {site}")
             t = threading.Thread(
                 target=target,
-                args=(site,),
-                daemon=True,
-            )
-            t.start()
-            threads.append(t)
-            time.sleep(0.2)
-        for t in threads:
-            t.join()
-        logger.info("All scraping threads completed, combining results")
-        for site in self.sites:
-            courses: list[Course] = getattr(self, f"{scraper_dict[site]}_data")
+        
+        # Redis Locking
+        redis_client = None
+        lock = None
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        
+        try:
+            redis_client = redis.from_url(redis_url, socket_connect_timeout=1)
+            redis_client.ping()
+            print("Connected to Redis for locking.")
+            lock = redis_client.lock("scraper_lock", timeout=600, blocking_timeout=5)
+        except Exception as e:
+            print(f"Redis connection failed: {e}. Proceeding without lock (unsafe for concurrency).")
 
-            for course in courses:
-                course.site = site
-                scraped_data.add(course)
+        if lock:
+            have_lock = lock.acquire(blocking=False)
+            if not have_lock:
+                logger.warning("Another scrape job is running. Skipping this execution.")
+                return []
+            else:
+                logger.info("Acquired scraper lock.")
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.scraper_dict)) as executor:
+                for site in self.scraper_dict:
+                    executor.submit(target if target else getattr(self, self.scraper_dict[site]))
+
+            for site in self.scraper_dict:
+                data = getattr(self, f"{self.scraper_dict[site]}_data")
+                scraped_data.update(data)
+                
+        finally:
+            if lock and have_lock:
+                try:
+                    lock.release()
+                    logger.info("Released scraper lock.")
+                except Exception as e:
+                    logger.error(f"Error releasing lock: {e}")
 
         logger.info(f"Scraping finished. Found {len(scraped_data)} unique courses.")
         return list(scraped_data)

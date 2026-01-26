@@ -14,6 +14,9 @@ from database import engine, get_db, SessionLocal
 from database import engine, get_db, SessionLocal
 from scraper_wrapper import get_all_courses
 from sqlalchemy import text, inspect
+import redis
+import os
+import json
 
 def ensure_schema_updates():
     """Check for missing columns and add them if necessary."""
@@ -158,6 +161,34 @@ def trigger_scrape(background_tasks: BackgroundTasks):
     db = SessionLocal()
     background_tasks.add_task(scrape_job, db)
     return {"message": "Scraping started in background"}
+
+
+@app.get("/admin/logs")
+def get_logs(limit: int = 100):
+    """Fetch recent logs from Redis."""
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    try:
+        r = redis.from_url(redis_url, socket_connect_timeout=1)
+        # lrange returns list of bytes
+        logs = r.lrange("log_channel", -limit, -1)
+        return {"logs": [l.decode("utf-8") for l in logs]}
+    except Exception as e:
+        logger.error(f"Failed to fetch logs: {e}")
+        return {"logs": [], "error": str(e)}
+
+@app.get("/admin/status")
+def get_status():
+    """Check if scraper is running."""
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    try:
+        r = redis.from_url(redis_url, socket_connect_timeout=1)
+        # Check if lock key exists. Key name is "scraper_lock" (from base.py)
+        # Note: redis lock implementation details vary. 
+        # But usually the key is present.
+        is_running = r.exists("scraper_lock") == 1
+        return {"is_running": is_running}
+    except Exception as e:
+        return {"is_running": False, "error": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
