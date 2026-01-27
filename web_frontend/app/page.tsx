@@ -4,11 +4,10 @@ import CourseGrid from "@/components/CourseGrid";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
+export default async function Home(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const searchParams = await props.searchParams;
   const page = Number(searchParams.page) || 1;
   const search = typeof searchParams.search === "string" ? searchParams.search : "";
   const category = typeof searchParams.category === "string" ? searchParams.category : "All";
