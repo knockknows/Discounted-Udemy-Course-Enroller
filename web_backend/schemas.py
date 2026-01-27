@@ -3,9 +3,9 @@ from typing import Optional, List
 from datetime import datetime
 
 class CourseBase(BaseModel):
-    title: str
-    url: str
-    site: str
+    title: Optional[str] = None
+    url: Optional[str] = None
+    site: Optional[str] = None
     coupon_code: Optional[str] = None
     is_free: bool = False
     price: Optional[str] = None

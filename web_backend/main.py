@@ -56,6 +56,12 @@ def ensure_schema_updates():
         if 'description' not in columns:
             logger.info("Adding 'description' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN description TEXT"))
+        
+        # Data Migration: Fix existing courses that were marked as paid (is_free=False) 
+        # but have a coupon code (which implies they are free/discounted).
+        logger.info("Migrating data: Setting is_free=True for courses with coupon_code...")
+        conn.execute(text("UPDATE courses SET is_free = true WHERE coupon_code IS NOT NULL AND is_free = false"))
+        
         conn.commit()
     logger.info("Schema check complete.")
 
