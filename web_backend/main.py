@@ -161,7 +161,13 @@ def scrape_job(db: Session):
 def read_root():
     return {"message": "Welcome to Discounted Udemy Courses API", "endpoints": ["/courses", "/scrape"]}
 
-@app.get("/courses")
+import schemas
+
+# ... (existing imports)
+
+# ... inside read_courses
+
+@app.get("/courses", response_model=schemas.CourseList)
 def read_courses(
     page: int = 1, 
     limit: int = 20, 
@@ -187,12 +193,12 @@ def read_courses(
     offset = (page - 1) * limit
     courses = query.order_by(models.Course.created_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
     
-    return {
-        "count": total_count,
-        "page": page,
-        "limit": limit,
-        "courses": courses
-    }
+    return schemas.CourseList(
+        count=total_count,
+        page=page,
+        limit=limit,
+        courses=courses
+    )
 
 @app.post("/scrape")
 def trigger_scrape(background_tasks: BackgroundTasks):
