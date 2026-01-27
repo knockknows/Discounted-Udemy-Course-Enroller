@@ -88,12 +88,18 @@ def get_all_courses():
     # Convert Course objects to dicts for JSON serialization
     results = []
     for course in enriched_courses:
+        # Default to True for is_free because we are scraping free coupon sites.
+        # If enrichment fails, we still want to show the course.
+        is_free_status = course.is_free
+        if not is_free_status and course.coupon_code:
+            is_free_status = True
+            
         results.append({
             "title": course.title,
             "url": course.url,
             "site": course.site,
             "coupon_code": course.coupon_code,
-            "is_free": course.is_free,
+            "is_free": is_free_status,
             "price": str(course.price) if course.price else None,
             "category": getattr(course, "category", None),
             "thumbnail_url": getattr(course, "thumbnail_url", None),
