@@ -18,7 +18,10 @@ export default async function Home(props: {
   const isFalse = rawShowFree === "false" || (Array.isArray(rawShowFree) && rawShowFree[0] === "false");
   const showFreeOnly = !isFalse;
 
-  const { courses, count } = await fetchCourses(page, 20, search, category, showFreeOnly);
+  const rawIsSubscribed = searchParams.is_subscribed;
+  const isSubscribed = rawIsSubscribed === "true" || (Array.isArray(rawIsSubscribed) && rawIsSubscribed[0] === "true") ? true : undefined;
+
+  const { courses, count } = await fetchCourses(page, 20, search, category, showFreeOnly, isSubscribed);
   const totalPages = Math.ceil(count / 20);
 
   return (

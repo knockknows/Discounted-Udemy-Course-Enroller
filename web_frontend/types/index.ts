@@ -1,4 +1,5 @@
 export interface Course {
+    id: number;
     title: string;
     url: string;
     site: string;
@@ -12,6 +13,7 @@ export interface Course {
     rating?: string | null;
     total_reviews?: number | null;
     description?: string | null;
+    is_subscribed?: boolean;
 }
 
 export interface CoursesResponse {

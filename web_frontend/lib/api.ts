@@ -1,4 +1,4 @@
-import { CoursesResponse } from "@/types";
+import { CoursesResponse, Course } from "@/types";
 
 // Prioritize internal URL for server-side fetches (Docker), fallback to public URL
 const API_BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -8,7 +8,8 @@ export async function fetchCourses(
     limit: number = 20,
     search: string = "",
     category: string = "All",
-    showFreeOnly: boolean = false
+    showFreeOnly: boolean = false,
+    isSubscribed?: boolean
 ): Promise<CoursesResponse> {
     const params = new URLSearchParams({
         page: page.toString(),
@@ -18,6 +19,7 @@ export async function fetchCourses(
 
     if (search) params.append("search", search);
     if (category && category !== "All") params.append("category", category);
+    if (isSubscribed !== undefined) params.append("is_subscribed", isSubscribed.toString());
 
     try {
         const res = await fetch(`${API_BASE_URL}/courses?${params.toString()}`, {
@@ -32,6 +34,23 @@ export async function fetchCourses(
     } catch (error) {
         console.error("Error fetching courses:", error);
         return { courses: [], count: 0 };
+    }
+}
+
+export async function toggleSubscription(courseId: number): Promise<Course | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/courses/${courseId}/subscribe`, {
+            method: "PUT",
+        });
+
+        if (!res.ok) {
+            throw new Error(`Failed to toggle subscription: ${res.statusText}`);
+        }
+
+        return await res.json();
+    } catch (error) {
+        console.error("Error toggling subscription:", error);
+        return null;
     }
 }
 

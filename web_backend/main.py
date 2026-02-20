@@ -1,5 +1,6 @@
-from fastapi import FastAPI, BackgroundTasks, Depends, Request
+from fastapi import FastAPI, BackgroundTasks, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import sys
 import os
@@ -56,6 +57,10 @@ def ensure_schema_updates():
         if 'description' not in columns:
             logger.info("Adding 'description' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN description TEXT"))
+            
+        if 'is_subscribed' not in columns:
+            logger.info("Adding 'is_subscribed' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN is_subscribed BOOLEAN DEFAULT FALSE"))
         
         # Data Migration: Fix existing courses that were marked as paid (is_free=False) 
         # but have a coupon code (which implies they are free/discounted).
@@ -120,6 +125,12 @@ async def log_requests(request: Request, call_next):
 def scrape_job(db: Session):
     logger.info("Starting background scrape...")
     try:
+        # Clean up courses older than 2 weeks
+        two_weeks_ago = datetime.utcnow() - timedelta(days=14)
+        deleted_count = db.query(models.Course).filter(models.Course.created_at < two_weeks_ago).delete()
+        if deleted_count > 0:
+            logger.info(f"Cleaned up {deleted_count} courses older than two weeks.")
+            
         results = get_all_courses()
         logger.info(f"Scrape complete. Found {len(results)} courses. Saving to DB...")
         
@@ -130,7 +141,9 @@ def scrape_job(db: Session):
             # logger.info(f"Processing: {course_data.get('title')} | {course_data.get('url')}")
             # Use upsert logic (Requires Postgres)
             # For simplicity with SQLAlchemy ORM generic plain: check exists then update
-            existing = db.query(models.Course).filter(models.Course.url == course_data["url"]).first()
+            existing = db.query(models.Course).filter(
+                (models.Course.url == course_data["url"]) | (models.Course.title == course_data["title"])
+            ).first()
             if existing:
                 existing.title = course_data["title"]
                 existing.site = course_data["site"]
@@ -180,6 +193,7 @@ def read_courses(
     search: Optional[str] = None,
     category: Optional[str] = None,
     show_free_only: bool = False,
+    is_subscribed: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Course)
@@ -193,6 +207,9 @@ def read_courses(
     if show_free_only:
         query = query.filter(models.Course.is_free == True)
 
+    if is_subscribed is not None:
+        query = query.filter(models.Course.is_subscribed == is_subscribed)
+
     total_count = query.count()
     logger.info(f"API /courses: search='{search}', category='{category}', free={show_free_only} -> Found {total_count} records")
     
@@ -205,6 +222,16 @@ def read_courses(
         limit=limit,
         courses=courses
     )
+
+@app.put("/courses/{course_id}/subscribe", response_model=schemas.Course)
+def toggle_subscribe(course_id: int, db: Session = Depends(get_db)):
+    course = db.query(models.Course).filter(models.Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    course.is_subscribed = not course.is_subscribed
+    db.commit()
+    db.refresh(course)
+    return course
 
 @app.post("/scrape")
 def trigger_scrape(background_tasks: BackgroundTasks):

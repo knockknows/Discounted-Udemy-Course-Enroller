@@ -21,6 +21,7 @@ class Course(Base):
     rating = Column(String, nullable=True) # Storing as string to keep it simple or Float
     total_reviews = Column(Integer, nullable=True)
     description = Column(Text, nullable=True)
+    is_subscribed = Column(Boolean, default=False, index=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

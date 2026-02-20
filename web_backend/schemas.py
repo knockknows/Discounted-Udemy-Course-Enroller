@@ -16,6 +16,7 @@ class CourseBase(BaseModel):
     rating: Optional[str] = None
     total_reviews: Optional[int] = None
     description: Optional[str] = None
+    is_subscribed: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
