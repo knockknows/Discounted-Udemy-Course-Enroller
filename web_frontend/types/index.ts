@@ -14,6 +14,7 @@ export interface Course {
     total_reviews?: number | null;
     description?: string | null;
     is_subscribed?: boolean;
+    created_at?: string;
 }
 
 export interface CoursesResponse {

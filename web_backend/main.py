@@ -95,10 +95,30 @@ def scheduled_scrape():
     db = SessionLocal()
     scrape_job(db)
 
+def clean_old_courses():
+    logger.info("Running scheduled old courses cleanup...")
+    db = SessionLocal()
+    try:
+        two_weeks_ago = datetime.utcnow() - timedelta(days=14)
+        deleted_count = db.query(models.Course).filter(models.Course.created_at < two_weeks_ago).delete()
+        if deleted_count > 0:
+            logger.info(f"Cleaned up {deleted_count} courses older than two weeks.")
+        db.commit()
+    except Exception as e:
+        logger.error(f"Cleanup failed: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up...")
+    # Run cleanup on startup once
+    clean_old_courses()
+    
     scheduler.add_job(scheduled_scrape, 'interval', minutes=15)
+    # Run cleanup once a day at midnight
+    scheduler.add_job(clean_old_courses, 'cron', hour=0, minute=0)
     scheduler.start()
     logger.info("Scheduler started.")
     yield
@@ -125,12 +145,6 @@ async def log_requests(request: Request, call_next):
 def scrape_job(db: Session):
     logger.info("Starting background scrape...")
     try:
-        # Clean up courses older than 2 weeks
-        two_weeks_ago = datetime.utcnow() - timedelta(days=14)
-        deleted_count = db.query(models.Course).filter(models.Course.created_at < two_weeks_ago).delete()
-        if deleted_count > 0:
-            logger.info(f"Cleaned up {deleted_count} courses older than two weeks.")
-            
         results = get_all_courses()
         logger.info(f"Scrape complete. Found {len(results)} courses. Saving to DB...")
         

@@ -47,7 +47,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                         <span>No Image</span>
                     </div>
                 )}
-                <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                <div className="absolute z-10 top-2 right-2 flex flex-col gap-1 items-end">
                     <button
                         onClick={handleSubscribe}
                         disabled={isUpdating}
@@ -125,6 +125,11 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                     {course.expiration_date && (
                         <div className="text-xs text-orange-600">
                             Expires: {course.expiration_date}
+                        </div>
+                    )}
+                    {course.created_at && (
+                        <div className="text-xs text-gray-400">
+                            Crawled: {new Date(course.created_at).toLocaleDateString()}
                         </div>
                     )}
                 </div>
