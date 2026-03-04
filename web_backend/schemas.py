@@ -17,6 +17,12 @@ class CourseBase(BaseModel):
     total_reviews: Optional[int] = None
     description: Optional[str] = None
     is_subscribed: bool = False
+    verification_status: str = "unverified_error"
+    verified_discount_percent: Optional[int] = None
+    verified_final_price: Optional[str] = None
+    verification_source: Optional[str] = None
+    verification_checked_at: Optional[datetime] = None
+    verification_error: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from database import Base
 from datetime import datetime
 
@@ -22,6 +22,12 @@ class Course(Base):
     total_reviews = Column(Integer, nullable=True)
     description = Column(Text, nullable=True)
     is_subscribed = Column(Boolean, default=False, index=True)
+    verification_status = Column(String, nullable=False, default="unverified_error", index=True)
+    verified_discount_percent = Column(Integer, nullable=True)
+    verified_final_price = Column(String, nullable=True)
+    verification_source = Column(String, nullable=True)
+    verification_checked_at = Column(DateTime, nullable=True)
+    verification_error = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -12,11 +12,10 @@ export default async function Home(props: {
   const search = typeof searchParams.search === "string" ? searchParams.search : "";
   const category = typeof searchParams.category === "string" ? searchParams.category : "All";
 
-  // Default to true (Free Only) if not specified, unless explicitly "false"
-  // Robustly handle string or array of strings
+  // Default to false so flagged/non-100 items remain visible unless explicitly filtered.
   const rawShowFree = searchParams.show_free_only;
-  const isFalse = rawShowFree === "false" || (Array.isArray(rawShowFree) && rawShowFree[0] === "false");
-  const showFreeOnly = !isFalse;
+  const isTrue = rawShowFree === "true" || (Array.isArray(rawShowFree) && rawShowFree[0] === "true");
+  const showFreeOnly = isTrue;
 
   const rawIsSubscribed = searchParams.is_subscribed;
   const isSubscribed = rawIsSubscribed === "true" || (Array.isArray(rawIsSubscribed) && rawIsSubscribed[0] === "true") ? true : undefined;
@@ -29,7 +28,7 @@ export default async function Home(props: {
       <header className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Discounted Udemy Courses</h1>
-          <p className="text-gray-600 mt-2">Found {count} free courses available now</p>
+          <p className="text-gray-600 mt-2">Found {count} courses (with verification status)</p>
         </div>
         <ScrapeButton />
       </header>

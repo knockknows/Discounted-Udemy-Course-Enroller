@@ -6,6 +6,22 @@ interface CourseCardProps {
     course: Course;
 }
 
+function getVerificationBadge(course: Course): { label: string; className: string } {
+    switch (course.verification_status) {
+        case "verified_100":
+            return { label: "Verified 100%", className: "bg-green-600 text-white" };
+        case "verified_not_100":
+            return { label: "<100% Verified", className: "bg-red-600 text-white" };
+        case "unverified_error":
+            return { label: "Unverified", className: "bg-amber-500 text-white" };
+        default:
+            return {
+                label: course.is_free ? "Free" : "Unknown",
+                className: course.is_free ? "bg-green-500 text-white" : "bg-gray-500 text-white",
+            };
+    }
+}
+
 const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
     const [course, setCourse] = useState(initialCourse);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -17,17 +33,19 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
 
         setIsUpdating(true);
         // Optimistic UI update
-        setCourse(prev => ({ ...prev, is_subscribed: !prev.is_subscribed }));
+        setCourse((prev) => ({ ...prev, is_subscribed: !prev.is_subscribed }));
 
         const updatedCourse = await toggleSubscription(course.id);
         if (updatedCourse) {
             setCourse(updatedCourse);
         } else {
             // Revert on failure
-            setCourse(prev => ({ ...prev, is_subscribed: !prev.is_subscribed }));
+            setCourse((prev) => ({ ...prev, is_subscribed: !prev.is_subscribed }));
         }
         setIsUpdating(false);
     };
+
+    const verificationBadge = getVerificationBadge(course);
 
     return (
         <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
@@ -39,7 +57,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                         alt={course.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x200?text=No+Image';
+                            (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x200?text=No+Image";
                         }}
                     />
                 ) : (
@@ -51,20 +69,18 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                     <button
                         onClick={handleSubscribe}
                         disabled={isUpdating}
-                        className={`p-1.5 rounded-full bg-white shadow-md hover:scale-110 transition-transform ${course.is_subscribed ? 'text-yellow-500' : 'text-gray-300 hover:text-gray-500'}`}
+                        className={`p-1.5 rounded-full bg-white shadow-md hover:scale-110 transition-transform ${course.is_subscribed ? "text-yellow-500" : "text-gray-300 hover:text-gray-500"}`}
                         title={course.is_subscribed ? "Unsubscribe" : "Subscribe"}
                     >
                         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                         </svg>
                     </button>
-                    {course.is_free && (
-                        <span className="text-xs font-bold px-2 py-1 rounded bg-green-500 text-white shadow">
-                            FREE
-                        </span>
-                    )}
-                    {course.discount_info && !course.is_free && (
-                        <span className="text-xs font-bold px-2 py-1 rounded bg-red-500 text-white shadow">
+                    <span className={`text-xs font-bold px-2 py-1 rounded shadow ${verificationBadge.className}`}>
+                        {verificationBadge.label}
+                    </span>
+                    {course.discount_info && (
+                        <span className="text-xs font-bold px-2 py-1 rounded bg-blue-500 text-white shadow">
                             {course.discount_info}
                         </span>
                     )}
@@ -73,9 +89,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
 
             <div className="p-4">
                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold px-2 py-1 rounded bg-blue-100 text-blue-800">
-                        {course.site}
-                    </span>
+                    <span className="text-xs font-bold px-2 py-1 rounded bg-blue-100 text-blue-800">{course.site}</span>
                     {course.category && (
                         <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-100 rounded">
                             {course.category}
@@ -89,7 +103,6 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                     </a>
                 </h3>
 
-                {/* Rating Info */}
                 {(course.rating || course.total_reviews) && (
                     <div className="flex items-center gap-1 mb-2">
                         {course.rating && (
@@ -106,11 +119,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                     </div>
                 )}
 
-                {course.description && (
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-3">
-                        {course.description}
-                    </p>
-                )}
+                {course.description && <p className="text-sm text-gray-600 mb-3 line-clamp-3">{course.description}</p>}
 
                 <div className="text-sm text-gray-500 mb-4 space-y-1">
                     {course.coupon_code ? (
@@ -122,15 +131,25 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                         <div>No Coupon Code</div>
                     )}
 
-                    {course.expiration_date && (
-                        <div className="text-xs text-orange-600">
-                            Expires: {course.expiration_date}
+                    {course.verified_discount_percent !== undefined && course.verified_discount_percent !== null && (
+                        <div className="text-xs text-indigo-700">Verified Discount: {course.verified_discount_percent}%</div>
+                    )}
+
+                    {course.verified_final_price !== undefined && course.verified_final_price !== null && (
+                        <div className="text-xs text-indigo-700">
+                            Verified Final Price: {course.verified_final_price === "0" ? "Free" : course.verified_final_price}
                         </div>
                     )}
+
+                    {course.verification_error && course.verification_status === "unverified_error" && (
+                        <div className="text-xs text-amber-700 line-clamp-2">Verification Note: {course.verification_error}</div>
+                    )}
+
+                    {course.expiration_date && (
+                        <div className="text-xs text-orange-600">Expires: {course.expiration_date}</div>
+                    )}
                     {course.created_at && (
-                        <div className="text-xs text-gray-400">
-                            Crawled: {new Date(course.created_at).toLocaleDateString()}
-                        </div>
+                        <div className="text-xs text-gray-400">Crawled: {new Date(course.created_at).toLocaleDateString()}</div>
                     )}
                 </div>
 

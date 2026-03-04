@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import CourseCard from "@/components/CourseCard";
 import { Course } from "@/types";
@@ -19,7 +19,7 @@ export default function CourseGrid({ initialCourses = [], totalCount = 0, curren
     // Initialize state from URL
     const initialSearch = searchParams.get("search") || "";
     const initialCategory = searchParams.get("category") || "All";
-    const initialShowFreeOnly = searchParams.get("show_free_only") === "false" ? false : true;
+    const initialShowFreeOnly = searchParams.get("show_free_only") === "true";
     const initialIsSubscribed = searchParams.get("is_subscribed") === "true";
 
     const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -61,7 +61,7 @@ export default function CourseGrid({ initialCourses = [], totalCount = 0, curren
         if (page > 1) params.set("page", page.toString());
         if (search) params.set("search", search);
         if (category && category !== "All") params.set("category", category);
-        if (!freeOnly) params.set("show_free_only", "false"); // Only set if false (since default is true)
+        if (freeOnly) params.set("show_free_only", "true");
         if (subscribedOnly) params.set("is_subscribed", "true");
 
         router.push(`/?${params.toString()}`);
@@ -122,7 +122,7 @@ export default function CourseGrid({ initialCourses = [], totalCount = 0, curren
                             : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                             }`}
                     >
-                        {showFreeOnly ? "100% OFF Only" : "All Discounts"}
+                        {showFreeOnly ? "100% Verified Only" : "All Verification Statuses"}
                     </button>
                     <button
                         onClick={handleSubscribedToggle}
@@ -146,15 +146,15 @@ export default function CourseGrid({ initialCourses = [], totalCount = 0, curren
                     <div className="col-span-full text-center py-20 bg-white rounded-lg shadow-sm">
                         <h2 className="text-xl text-gray-600">No courses match your criteria.</h2>
                         <div className="mt-2 text-sm text-gray-500">
-                            Try adjusting your filters (e.g. toggle 100% OFF).
+                            Try adjusting your filters (e.g. toggle 100% verified only).
                         </div>
                         <button
                             onClick={() => {
                                 setSearchQuery("");
                                 setSelectedCategory("All");
-                                setShowFreeOnly(true);
+                                setShowFreeOnly(false);
                                 setShowSubscribedOnly(false);
-                                updateUrl("", "All", true, false, 1);
+                                updateUrl("", "All", false, false, 1);
                             }}
                             className="mt-4 text-blue-600 hover:underline"
                         >

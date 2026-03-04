@@ -9,19 +9,15 @@ from loguru import logger
 # Add parent directory to path to import base.py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from base import RedisSink
-from typing import List, Optional
+from typing import Optional
 import uvicorn
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
-from sqlalchemy.dialects.postgresql import insert
 import models
-from database import engine, get_db, SessionLocal
 from database import engine, get_db, SessionLocal
 from scraper_wrapper import get_all_courses
 from sqlalchemy import text, inspect
 import redis
-import os
-import json
 
 def ensure_schema_updates():
     """Check for missing columns and add them if necessary."""
@@ -61,11 +57,53 @@ def ensure_schema_updates():
         if 'is_subscribed' not in columns:
             logger.info("Adding 'is_subscribed' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN is_subscribed BOOLEAN DEFAULT FALSE"))
-        
-        # Data Migration: Fix existing courses that were marked as paid (is_free=False) 
-        # but have a coupon code (which implies they are free/discounted).
-        logger.info("Migrating data: Setting is_free=True for courses with coupon_code...")
-        conn.execute(text("UPDATE courses SET is_free = true WHERE coupon_code IS NOT NULL AND is_free = false"))
+
+        if 'verification_status' not in columns:
+            logger.info("Adding 'verification_status' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN verification_status VARCHAR"))
+        if 'verified_discount_percent' not in columns:
+            logger.info("Adding 'verified_discount_percent' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN verified_discount_percent INTEGER"))
+        if 'verified_final_price' not in columns:
+            logger.info("Adding 'verified_final_price' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN verified_final_price VARCHAR"))
+        if 'verification_source' not in columns:
+            logger.info("Adding 'verification_source' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN verification_source VARCHAR"))
+        if 'verification_checked_at' not in columns:
+            logger.info("Adding 'verification_checked_at' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN verification_checked_at TIMESTAMP"))
+        if 'verification_error' not in columns:
+            logger.info("Adding 'verification_error' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN verification_error TEXT"))
+
+        # Hard cleanup for legacy records: stop treating coupon presence as free.
+        logger.info("Applying verification hard cleanup for legacy records...")
+        conn.execute(text("""
+            UPDATE courses
+            SET
+                verification_status = COALESCE(verification_status, 'unverified_error'),
+                verification_source = COALESCE(verification_source, 'legacy'),
+                verification_error = CASE
+                    WHEN verification_status IS NULL THEN COALESCE(verification_error, 'Legacy record requires verification')
+                    ELSE verification_error
+                END
+        """))
+        conn.execute(text("""
+            UPDATE courses
+            SET
+                verification_status = 'verified_not_100',
+                verification_source = COALESCE(verification_source, 'legacy'),
+                verification_error = NULL
+            WHERE
+                discount_info IS NOT NULL
+                AND LOWER(discount_info) LIKE '%off%'
+                AND discount_info NOT LIKE '%100%'
+        """))
+        conn.execute(text("""
+            UPDATE courses
+            SET is_free = CASE WHEN verification_status = 'verified_100' THEN true ELSE false END
+        """))
         
         conn.commit()
     logger.info("Schema check complete.")
@@ -173,6 +211,12 @@ def scrape_job(db: Session):
                 existing.rating = course_data.get("rating")
                 existing.total_reviews = course_data.get("total_reviews")
                 existing.description = course_data.get("description")
+                existing.verification_status = course_data.get("verification_status", "unverified_error")
+                existing.verified_discount_percent = course_data.get("verified_discount_percent")
+                existing.verified_final_price = course_data.get("verified_final_price")
+                existing.verification_source = course_data.get("verification_source")
+                existing.verification_checked_at = course_data.get("verification_checked_at")
+                existing.verification_error = course_data.get("verification_error")
                 
                 count_updated += 1
                 # updated_at handled by onupdate
@@ -208,6 +252,7 @@ def read_courses(
     category: Optional[str] = None,
     show_free_only: bool = False,
     is_subscribed: Optional[bool] = None,
+    verification: str = "all",
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Course)
@@ -224,8 +269,14 @@ def read_courses(
     if is_subscribed is not None:
         query = query.filter(models.Course.is_subscribed == is_subscribed)
 
+    if verification != "all":
+        query = query.filter(models.Course.verification_status == verification)
+
     total_count = query.count()
-    logger.info(f"API /courses: search='{search}', category='{category}', free={show_free_only} -> Found {total_count} records")
+    logger.info(
+        f"API /courses: search='{search}', category='{category}', free={show_free_only}, "
+        f"verification='{verification}' -> Found {total_count} records"
+    )
     
     offset = (page - 1) * limit
     courses = query.order_by(models.Course.created_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
