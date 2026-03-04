@@ -11,3 +11,5 @@ oci_knockknows
 oci_knockknows.pub
 temp_deploy_key
 deploy_key_v2
+temp_key_v3
+deploy_remote.sh
