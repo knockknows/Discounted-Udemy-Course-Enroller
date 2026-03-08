@@ -172,6 +172,29 @@ def _build_pending_verification_result(source: str, error: Optional[str] = None)
     )
 
 
+def _is_bot_challenge_page(html: str, soup: Optional[BeautifulSoup] = None) -> bool:
+    if not html:
+        return False
+
+    challenge_patterns = [
+        r"just a moment",
+        r"cf-browser-verification",
+        r"cf-chl",
+        r"cloudflare",
+        r"attention required",
+        r"captcha",
+    ]
+    if any(re.search(pattern, html, flags=re.IGNORECASE) for pattern in challenge_patterns):
+        return True
+
+    if soup and soup.title and soup.title.string:
+        title = soup.title.string.strip()
+        if re.search(r"just a moment|attention required", title, flags=re.IGNORECASE):
+            return True
+
+    return False
+
+
 def _normalize_language_name(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
@@ -224,6 +247,7 @@ def _evaluate_verification(
     discount_percent: Optional[int],
     final_price: Optional[Decimal],
     coupon_status: Optional[str],
+    coupon_evidence: bool,
     source: str,
     default_error: Optional[str],
 ) -> dict:
@@ -247,6 +271,14 @@ def _evaluate_verification(
             else:
                 return _build_verification_result(VERIFIED_100, discount_percent, final_price, source)
         elif final_price > Decimal("0"):
+            if coupon_code and normalized_status is None and discount_percent is None and not coupon_evidence:
+                return _build_pending_verification_result(
+                    source,
+                    error=(
+                        "Coupon pricing could not be confidently verified from HTML/API response. "
+                        "Likely blocked by anti-bot protections; retrying on next crawl."
+                    ),
+                )
             return _build_verification_result(VERIFIED_NOT_100, non_100_percent, final_price, source)
 
     if discount_percent is not None:
@@ -352,16 +384,25 @@ def _verify_with_api(
         discount_percent,
         final_price,
         coupon_status,
+        coupon_evidence=True,
         source="api",
         default_error="Udemy API response missing pricing confirmation",
     )
 
 
 def _verify_with_html(course, html: str, soup: BeautifulSoup) -> dict:
+    if _is_bot_challenge_page(html, soup):
+        return _build_pending_verification_result(
+            "html",
+            error="Udemy returned a bot-protection challenge page; retrying verification on next crawl.",
+        )
+
     discount_percent = None
     final_price = None
     list_price = None
     coupon_status = None
+    coupon_evidence = False
+    final_price_source = None
 
     for pattern in [r'"discount_percent"\s*:\s*(\d{1,3})', r"(\d{1,3})\s*%\s*off"]:
         match = re.search(pattern, html, flags=re.IGNORECASE)
@@ -369,18 +410,23 @@ def _verify_with_html(course, html: str, soup: BeautifulSoup) -> dict:
             parsed = _to_int(match.group(1))
             if parsed is not None:
                 discount_percent = max(0, min(100, parsed))
+                coupon_evidence = True
                 break
 
-    for pattern in [
-        r'"discounted_price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?',
-        r'"discount_price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?',
-        r'"current_price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?',
-        r'"price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?',
-    ]:
+    final_price_patterns = [
+        ("discounted_price", r'"discounted_price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?'),
+        ("discount_price", r'"discount_price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?'),
+        ("current_price", r'"current_price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?'),
+        ("price", r'"price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?'),
+    ]
+    for source_name, pattern in final_price_patterns:
         match = re.search(pattern, html)
         if match:
             final_price = _to_decimal(match.group(1))
             if final_price is not None:
+                final_price_source = source_name
+                if source_name != "price":
+                    coupon_evidence = True
                 break
 
     for pattern in [
@@ -407,6 +453,10 @@ def _verify_with_html(course, html: str, soup: BeautifulSoup) -> dict:
     )
     if coupon_match:
         coupon_status = coupon_match.group(1)
+        coupon_evidence = True
+
+    if final_price_source == "price" and course.coupon_code and discount_percent is None and coupon_status is None:
+        coupon_evidence = False
 
     if discount_percent is None and list_price and final_price is not None and list_price > Decimal("0"):
         calculated = (list_price - final_price) / list_price * Decimal("100")
@@ -417,6 +467,7 @@ def _verify_with_html(course, html: str, soup: BeautifulSoup) -> dict:
         discount_percent,
         final_price,
         coupon_status,
+        coupon_evidence=coupon_evidence,
         source="html",
         default_error="HTML fallback could not confirm 100% discount",
     )
