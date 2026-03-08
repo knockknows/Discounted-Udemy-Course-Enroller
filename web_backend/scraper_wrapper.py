@@ -496,6 +496,13 @@ def verify_udemy_discount(
         html_result["verification_source"] = "api+html" if course_id else "html"
         return html_result
 
+    if html_result["verification_status"] == VERIFICATION_PENDING:
+        joined_error = " | ".join(filter(None, [api_error, html_result.get("verification_error")]))
+        return _build_pending_verification_result(
+            source="api+html" if course_id else "html",
+            error=joined_error or PENDING_VERIFICATION_MESSAGE,
+        )
+
     if api_status == VERIFICATION_PENDING:
         joined_error = " | ".join(filter(None, [api_error, html_result.get("verification_error")]))
         return _build_pending_verification_result(
