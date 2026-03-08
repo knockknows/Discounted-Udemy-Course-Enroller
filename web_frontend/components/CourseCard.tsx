@@ -6,28 +6,12 @@ interface CourseCardProps {
     course: Course;
 }
 
-function getVerificationBadge(course: Course): { label: string; className: string } {
-    switch (course.verification_status) {
-        case "verified_100":
-            return { label: "Verified 100%", className: "bg-green-600 text-white" };
-        case "verified_not_100":
-            return { label: "<100% Verified", className: "bg-red-600 text-white" };
-        case "verification_pending":
-            return { label: "Verification Pending (403)", className: "bg-orange-500 text-white" };
-        case "unverified_error":
-            return { label: "Unverified", className: "bg-amber-500 text-white" };
-        default:
-            return {
-                label: course.is_free ? "Free" : "Unknown",
-                className: course.is_free ? "bg-green-500 text-white" : "bg-gray-500 text-white",
-            };
-    }
-}
-
 const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
     const [course, setCourse] = useState(initialCourse);
     const [isUpdating, setIsUpdating] = useState(false);
     const crawledAt = course.updated_at ?? course.created_at;
+    const discountPercent = course.verified_discount_percent;
+    const discountText = discountPercent !== undefined && discountPercent !== null ? `${discountPercent}%` : "Not verified";
 
     const handleSubscribe = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -47,8 +31,6 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
         }
         setIsUpdating(false);
     };
-
-    const verificationBadge = getVerificationBadge(course);
 
     return (
         <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
@@ -79,32 +61,12 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                         </svg>
                     </button>
-                    <span className={`text-xs font-bold px-2 py-1 rounded shadow ${verificationBadge.className}`}>
-                        {verificationBadge.label}
-                    </span>
-                    {course.discount_info && (
-                        <span className="text-xs font-bold px-2 py-1 rounded bg-blue-500 text-white shadow">
-                            {course.discount_info}
-                        </span>
-                    )}
                 </div>
             </div>
 
             <div className="p-4">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold px-2 py-1 rounded bg-blue-100 text-blue-800">{course.site}</span>
-                    <div className="flex items-center gap-1">
-                        {course.language && (
-                            <span className="text-xs text-teal-700 font-medium px-2 py-1 bg-teal-100 rounded">
-                                {course.language}
-                            </span>
-                        )}
-                        {course.category && (
-                            <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-100 rounded">
-                                {course.category}
-                            </span>
-                        )}
-                    </div>
+                <div className="mb-2 text-xs text-gray-500">
+                    {[course.site, course.category, course.language].filter(Boolean).join(" | ")}
                 </div>
 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 h-14" title={course.title}>
@@ -132,6 +94,8 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                 {course.description && <p className="text-sm text-gray-600 mb-3 line-clamp-3">{course.description}</p>}
 
                 <div className="text-sm text-gray-500 mb-4 space-y-1">
+                    <div className="text-sm font-semibold text-indigo-700">Discount: {discountText}</div>
+
                     {course.coupon_code ? (
                         <div className="flex items-center gap-1">
                             <span className="font-medium">Coupon:</span>
@@ -139,10 +103,6 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                         </div>
                     ) : (
                         <div>No Coupon Code</div>
-                    )}
-
-                    {course.verified_discount_percent !== undefined && course.verified_discount_percent !== null && (
-                        <div className="text-xs text-indigo-700">Verified Discount: {course.verified_discount_percent}%</div>
                     )}
 
                     {course.verified_final_price !== undefined && course.verified_final_price !== null && (

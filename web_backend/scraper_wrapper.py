@@ -358,6 +358,7 @@ def _verify_with_api(
 def _verify_with_html(course, html: str, soup: BeautifulSoup) -> dict:
     discount_percent = None
     final_price = None
+    list_price = None
     coupon_status = None
 
     for pattern in [r'"discount_percent"\s*:\s*(\d{1,3})', r"(\d{1,3})\s*%\s*off"]:
@@ -380,6 +381,16 @@ def _verify_with_html(course, html: str, soup: BeautifulSoup) -> dict:
             if final_price is not None:
                 break
 
+    for pattern in [
+        r'"list_price"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?',
+        r'"price_before_discount"\s*:\s*\{[^\}]*"amount"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)"?',
+    ]:
+        match = re.search(pattern, html)
+        if match:
+            list_price = _to_decimal(match.group(1))
+            if list_price is not None:
+                break
+
     if final_price is None:
         meta_price = soup.find("meta", attrs={"property": "product:price:amount"})
         if meta_price and meta_price.get("content"):
@@ -394,6 +405,10 @@ def _verify_with_html(course, html: str, soup: BeautifulSoup) -> dict:
     )
     if coupon_match:
         coupon_status = coupon_match.group(1)
+
+    if discount_percent is None and list_price and final_price is not None and list_price > Decimal("0"):
+        calculated = (list_price - final_price) / list_price * Decimal("100")
+        discount_percent = max(0, min(100, int(round(float(calculated)))))
 
     return _evaluate_verification(
         course.coupon_code,
@@ -526,9 +541,7 @@ def get_all_courses():
         stored_price = verified_price if verified_price is not None else fallback_price
 
         verified_discount_percent = verification.get("verified_discount_percent")
-        discount_info = getattr(course, "discount_info", None)
-        if verified_discount_percent is not None:
-            discount_info = f"{verified_discount_percent}% OFF"
+        discount_info = f"{verified_discount_percent}% OFF" if verified_discount_percent is not None else None
 
         language_value = _normalize_language_name(getattr(course, "language", None)) or "Unknown"
 

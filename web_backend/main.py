@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 import models
 from database import engine, get_db, SessionLocal
 from scraper_wrapper import get_all_courses
-from sqlalchemy import text, inspect
+from sqlalchemy import text, inspect, case
 import redis
 
 def ensure_schema_updates():
@@ -279,6 +279,7 @@ def read_courses(
     category: Optional[str] = None,
     language: Optional[str] = None,
     show_free_only: bool = False,
+    discount_filter: str = "all",
     is_subscribed: Optional[bool] = None,
     verification: str = "all",
     db: Session = Depends(get_db)
@@ -294,7 +295,18 @@ def read_courses(
     if language and language != "All":
         query = query.filter(models.Course.language == language)
         
-    if show_free_only:
+    # Backward compatibility with old frontend toggle
+    effective_discount_filter = discount_filter
+    if show_free_only and effective_discount_filter == "all":
+        effective_discount_filter = "100"
+
+    if effective_discount_filter == "100":
+        query = query.filter(
+            (models.Course.verified_discount_percent == 100) | (models.Course.is_free == True)
+        )
+    elif effective_discount_filter == "0":
+        query = query.filter(models.Course.verified_discount_percent == 0)
+    elif show_free_only:
         query = query.filter(models.Course.is_free == True)
 
     if is_subscribed is not None:
@@ -306,12 +318,29 @@ def read_courses(
     total_count = query.count()
     logger.info(
         f"API /courses: search='{search}', category='{category}', language='{language}', free={show_free_only}, "
-        f"verification='{verification}' -> Found {total_count} records"
+        f"discount_filter='{effective_discount_filter}', verification='{verification}' -> Found {total_count} records"
     )
     
     offset = (page - 1) * limit
-    # Show most recently crawled/updated courses first.
-    courses = query.order_by(models.Course.updated_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
+    discount_rank = case(
+        (models.Course.verified_discount_percent == 100, 0),
+        (models.Course.verified_discount_percent > 0, 1),
+        (models.Course.verified_discount_percent == 0, 2),
+        else_=3,
+    )
+
+    # Prefer Udemy-verified best discounts first, then latest updates.
+    courses = (
+        query.order_by(
+            discount_rank.asc(),
+            models.Course.verified_discount_percent.desc().nullslast(),
+            models.Course.updated_at.desc(),
+            models.Course.id.desc(),
+        )
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     
     return schemas.CourseList(
         count=total_count,

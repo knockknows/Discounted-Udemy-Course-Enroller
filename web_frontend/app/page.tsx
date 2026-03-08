@@ -12,17 +12,17 @@ export default async function Home(props: {
   const search = typeof searchParams.search === "string" ? searchParams.search : "";
   const category = typeof searchParams.category === "string" ? searchParams.category : "All";
   const language = typeof searchParams.language === "string" ? searchParams.language : "All";
-
-  // Default to false so flagged/non-100 items remain visible unless explicitly filtered.
-  const rawShowFree = searchParams.show_free_only;
-  const isTrue = rawShowFree === "true" || (Array.isArray(rawShowFree) && rawShowFree[0] === "true");
-  const showFreeOnly = isTrue;
+  const discountFilter =
+    typeof searchParams.discount_filter === "string" &&
+    (searchParams.discount_filter === "100" || searchParams.discount_filter === "0")
+      ? (searchParams.discount_filter as "100" | "0")
+      : "all";
 
   const rawIsSubscribed = searchParams.is_subscribed;
   const isSubscribed = rawIsSubscribed === "true" || (Array.isArray(rawIsSubscribed) && rawIsSubscribed[0] === "true") ? true : undefined;
 
   const [{ courses, count }, { languages }] = await Promise.all([
-    fetchCourses(page, 20, search, category, language, showFreeOnly, isSubscribed),
+    fetchCourses(page, 20, search, category, language, discountFilter, isSubscribed),
     fetchLanguages(),
   ]);
   const totalPages = Math.ceil(count / 20);

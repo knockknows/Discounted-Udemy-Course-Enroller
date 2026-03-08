@@ -27,13 +27,16 @@ export default function CourseGrid({
     const initialSearch = searchParams.get("search") || "";
     const initialCategory = searchParams.get("category") || "All";
     const initialLanguage = searchParams.get("language") || "All";
-    const initialShowFreeOnly = searchParams.get("show_free_only") === "true";
+    const initialDiscountFilter =
+        searchParams.get("discount_filter") === "100" || searchParams.get("discount_filter") === "0"
+            ? (searchParams.get("discount_filter") as "100" | "0")
+            : "all";
     const initialIsSubscribed = searchParams.get("is_subscribed") === "true";
 
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [selectedCategory, setSelectedCategory] = useState(initialCategory);
     const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage);
-    const [showFreeOnly, setShowFreeOnly] = useState(initialShowFreeOnly);
+    const [selectedDiscountFilter, setSelectedDiscountFilter] = useState<"all" | "100" | "0">(initialDiscountFilter);
     const [showSubscribedOnly, setShowSubscribedOnly] = useState(initialIsSubscribed);
 
     // Udemy Standard Categories (Hardcoded for stability)
@@ -59,7 +62,7 @@ export default function CourseGrid({
         search: string,
         category: string,
         language: string,
-        freeOnly: boolean,
+        discountFilter: "all" | "100" | "0",
         subscribedOnly: boolean,
         page: number
     ) => {
@@ -68,7 +71,7 @@ export default function CourseGrid({
         if (search) params.set("search", search);
         if (category && category !== "All") params.set("category", category);
         if (language && language !== "All") params.set("language", language);
-        if (freeOnly) params.set("show_free_only", "true");
+        if (discountFilter !== "all") params.set("discount_filter", discountFilter);
         if (subscribedOnly) params.set("is_subscribed", "true");
 
         router.push(`/?${params.toString()}`);
@@ -78,7 +81,7 @@ export default function CourseGrid({
     useEffect(() => {
         const handler = setTimeout(() => {
             if (searchQuery !== initialSearch) {
-                updateUrl(searchQuery, selectedCategory, selectedLanguage, showFreeOnly, showSubscribedOnly, 1);
+                updateUrl(searchQuery, selectedCategory, selectedLanguage, selectedDiscountFilter, showSubscribedOnly, 1);
             }
         }, 500);
         return () => clearTimeout(handler);
@@ -86,29 +89,28 @@ export default function CourseGrid({
 
     const handleCategoryChange = (cat: string) => {
         setSelectedCategory(cat);
-        updateUrl(searchQuery, cat, selectedLanguage, showFreeOnly, showSubscribedOnly, 1); // Reset to page 1
+        updateUrl(searchQuery, cat, selectedLanguage, selectedDiscountFilter, showSubscribedOnly, 1); // Reset to page 1
     };
 
     const handleLanguageChange = (lang: string) => {
         setSelectedLanguage(lang);
-        updateUrl(searchQuery, selectedCategory, lang, showFreeOnly, showSubscribedOnly, 1); // Reset to page 1
+        updateUrl(searchQuery, selectedCategory, lang, selectedDiscountFilter, showSubscribedOnly, 1); // Reset to page 1
     };
 
-    const handleFreeToggle = () => {
-        const newVal = !showFreeOnly;
-        setShowFreeOnly(newVal);
-        updateUrl(searchQuery, selectedCategory, selectedLanguage, newVal, showSubscribedOnly, 1); // Reset to page 1
+    const handleDiscountFilterChange = (value: "all" | "100" | "0") => {
+        setSelectedDiscountFilter(value);
+        updateUrl(searchQuery, selectedCategory, selectedLanguage, value, showSubscribedOnly, 1); // Reset to page 1
     };
 
     const handleSubscribedToggle = () => {
         const newVal = !showSubscribedOnly;
         setShowSubscribedOnly(newVal);
-        updateUrl(searchQuery, selectedCategory, selectedLanguage, showFreeOnly, newVal, 1); // Reset to page 1
+        updateUrl(searchQuery, selectedCategory, selectedLanguage, selectedDiscountFilter, newVal, 1); // Reset to page 1
     };
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
-            updateUrl(searchQuery, selectedCategory, selectedLanguage, showFreeOnly, showSubscribedOnly, newPage);
+            updateUrl(searchQuery, selectedCategory, selectedLanguage, selectedDiscountFilter, showSubscribedOnly, newPage);
         }
     };
 
@@ -145,16 +147,15 @@ export default function CourseGrid({
                             <option key={language} value={language}>{language}</option>
                         ))}
                     </select>
-
-                    <button
-                        onClick={handleFreeToggle}
-                        className={`px-4 py-2 rounded-md font-medium transition-colors ${showFreeOnly
-                            ? "bg-green-600 text-white hover:bg-green-700"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
+                    <select
+                        value={selectedDiscountFilter}
+                        onChange={(e) => handleDiscountFilterChange(e.target.value as "all" | "100" | "0")}
+                        className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
-                        {showFreeOnly ? "100% Verified Only" : "All Verification Statuses"}
-                    </button>
+                        <option value="all">All Discounts</option>
+                        <option value="100">100% Discount</option>
+                        <option value="0">0% Discount</option>
+                    </select>
                     <button
                         onClick={handleSubscribedToggle}
                         className={`px-4 py-2 rounded-md font-medium transition-colors ${showSubscribedOnly
@@ -177,16 +178,16 @@ export default function CourseGrid({
                     <div className="col-span-full text-center py-20 bg-white rounded-lg shadow-sm">
                         <h2 className="text-xl text-gray-600">No courses match your criteria.</h2>
                         <div className="mt-2 text-sm text-gray-500">
-                            Try adjusting your filters (e.g. toggle 100% verified only).
+                            Try adjusting your filters (e.g. 100% Discount / 0% Discount).
                         </div>
                         <button
                             onClick={() => {
                                 setSearchQuery("");
                                 setSelectedCategory("All");
                                 setSelectedLanguage("All");
-                                setShowFreeOnly(false);
+                                setSelectedDiscountFilter("all");
                                 setShowSubscribedOnly(false);
-                                updateUrl("", "All", "All", false, false, 1);
+                                updateUrl("", "All", "All", "all", false, 1);
                             }}
                             className="mt-4 text-blue-600 hover:underline"
                         >

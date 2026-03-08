@@ -9,19 +9,19 @@ export async function fetchCourses(
     search: string = "",
     category: string = "All",
     language: string = "All",
-    showFreeOnly: boolean = false,
+    discountFilter: "all" | "100" | "0" = "all",
     isSubscribed?: boolean,
     verification: string = "all"
 ): Promise<CoursesResponse> {
     const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString(),
-        show_free_only: showFreeOnly.toString() // API expects snake_case
+        limit: limit.toString()
     });
 
     if (search) params.append("search", search);
     if (category && category !== "All") params.append("category", category);
     if (language && language !== "All") params.append("language", language);
+    if (discountFilter !== "all") params.append("discount_filter", discountFilter);
     if (isSubscribed !== undefined) params.append("is_subscribed", isSubscribed.toString());
     if (verification !== "all") params.append("verification", verification);
 
