@@ -25,6 +25,7 @@ function getVerificationBadge(course: Course): { label: string; className: strin
 const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
     const [course, setCourse] = useState(initialCourse);
     const [isUpdating, setIsUpdating] = useState(false);
+    const crawledAt = course.updated_at ?? course.created_at;
 
     const handleSubscribe = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -148,8 +149,8 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                     {course.expiration_date && (
                         <div className="text-xs text-orange-600">Expires: {course.expiration_date}</div>
                     )}
-                    {course.created_at && (
-                        <div className="text-xs text-gray-400">Crawled: {new Date(course.created_at).toLocaleDateString()}</div>
+                    {crawledAt && (
+                        <div className="text-xs text-gray-400">Crawled: {new Date(crawledAt).toLocaleDateString()}</div>
                     )}
                 </div>
 

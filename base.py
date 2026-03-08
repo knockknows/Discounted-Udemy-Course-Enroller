@@ -374,8 +374,17 @@ class Scraper:
                 threads.append((site, t))
                 time.sleep(0.2)
 
+            join_deadline = time.monotonic() + site_timeout_seconds
             for site, t in threads:
-                t.join(timeout=site_timeout_seconds)
+                remaining = join_deadline - time.monotonic()
+                if remaining <= 0:
+                    if t.is_alive():
+                        logger.error(
+                            f"Site scraper timed out after {site_timeout_seconds}s: {site}"
+                        )
+                    continue
+
+                t.join(timeout=remaining)
                 if t.is_alive():
                     logger.error(
                         f"Site scraper timed out after {site_timeout_seconds}s: {site}"

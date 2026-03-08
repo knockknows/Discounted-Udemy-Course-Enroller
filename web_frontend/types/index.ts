@@ -21,6 +21,7 @@ export interface Course {
     verification_checked_at?: string | null;
     verification_error?: string | null;
     created_at?: string;
+    updated_at?: string;
 }
 
 export interface CoursesResponse {

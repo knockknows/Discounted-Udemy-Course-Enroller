@@ -141,7 +141,8 @@ def clean_old_courses():
     db = SessionLocal()
     try:
         two_weeks_ago = datetime.utcnow() - timedelta(days=14)
-        deleted_count = db.query(models.Course).filter(models.Course.created_at < two_weeks_ago).delete()
+        # Keep recently refreshed rows even if they were first seen long ago.
+        deleted_count = db.query(models.Course).filter(models.Course.updated_at < two_weeks_ago).delete()
         if deleted_count > 0:
             logger.info(f"Cleaned up {deleted_count} courses older than two weeks.")
         db.commit()
@@ -301,7 +302,8 @@ def read_courses(
     )
     
     offset = (page - 1) * limit
-    courses = query.order_by(models.Course.created_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
+    # Show most recently crawled/updated courses first.
+    courses = query.order_by(models.Course.updated_at.desc(), models.Course.id.desc()).offset(offset).limit(limit).all()
     
     return schemas.CourseList(
         count=total_count,
