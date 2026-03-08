@@ -228,11 +228,12 @@ def _evaluate_verification(
     default_error: Optional[str],
 ) -> dict:
     normalized_status = coupon_status.lower() if isinstance(coupon_status, str) else None
+    non_100_percent = discount_percent if discount_percent is not None else 0
 
     if coupon_code and normalized_status in FAILED_STATUSES:
         return _build_verification_result(
             VERIFIED_NOT_100,
-            discount_percent,
+            non_100_percent,
             final_price,
             source,
             error=f"Coupon status: {normalized_status}",
@@ -246,7 +247,7 @@ def _evaluate_verification(
             else:
                 return _build_verification_result(VERIFIED_100, discount_percent, final_price, source)
         elif final_price > Decimal("0"):
-            return _build_verification_result(VERIFIED_NOT_100, discount_percent, final_price, source)
+            return _build_verification_result(VERIFIED_NOT_100, non_100_percent, final_price, source)
 
     if discount_percent is not None:
         if discount_percent == 100:

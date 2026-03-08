@@ -107,6 +107,11 @@ def ensure_schema_updates():
             UPDATE courses
             SET is_free = CASE WHEN verification_status = 'verified_100' THEN true ELSE false END
         """))
+        conn.execute(text("""
+            UPDATE courses
+            SET verified_discount_percent = 0
+            WHERE verification_status = 'verified_not_100' AND verified_discount_percent IS NULL
+        """))
         
         conn.commit()
     logger.info("Schema check complete.")
