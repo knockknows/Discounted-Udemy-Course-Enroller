@@ -530,6 +530,8 @@ def get_all_courses():
         if verified_discount_percent is not None:
             discount_info = f"{verified_discount_percent}% OFF"
 
+        language_value = _normalize_language_name(getattr(course, "language", None)) or "Unknown"
+
         results.append(
             {
                 "title": course.title,
@@ -539,7 +541,7 @@ def get_all_courses():
                 "is_free": verification.get("verification_status") == VERIFIED_100,
                 "price": _decimal_to_string(stored_price),
                 "category": getattr(course, "category", None),
-                "language": getattr(course, "language", None),
+                "language": language_value,
                 "thumbnail_url": getattr(course, "thumbnail_url", None),
                 "discount_info": discount_info,
                 "expiration_date": getattr(course, "expiration_date", None),

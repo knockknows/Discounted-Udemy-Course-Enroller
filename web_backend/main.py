@@ -231,7 +231,7 @@ def scrape_job(db: Session):
                 
                 # Update new fields
                 existing.category = course_data.get("category")
-                existing.language = course_data.get("language")
+                existing.language = course_data.get("language") or existing.language
                 existing.thumbnail_url = course_data.get("thumbnail_url")
                 existing.discount_info = course_data.get("discount_info")
                 existing.expiration_date = course_data.get("expiration_date")
