@@ -1,4 +1,4 @@
-import { CoursesResponse, Course } from "@/types";
+import { CoursesResponse, Course, LanguagesResponse } from "@/types";
 
 // Prioritize internal URL for server-side fetches (Docker), fallback to public URL
 const API_BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -8,6 +8,7 @@ export async function fetchCourses(
     limit: number = 20,
     search: string = "",
     category: string = "All",
+    language: string = "All",
     showFreeOnly: boolean = false,
     isSubscribed?: boolean,
     verification: string = "all"
@@ -20,6 +21,7 @@ export async function fetchCourses(
 
     if (search) params.append("search", search);
     if (category && category !== "All") params.append("category", category);
+    if (language && language !== "All") params.append("language", language);
     if (isSubscribed !== undefined) params.append("is_subscribed", isSubscribed.toString());
     if (verification !== "all") params.append("verification", verification);
 
@@ -36,6 +38,19 @@ export async function fetchCourses(
     } catch (error) {
         console.error("Error fetching courses:", error);
         return { courses: [], count: 0 };
+    }
+}
+
+export async function fetchLanguages(): Promise<LanguagesResponse> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/languages`, { cache: "no-store" });
+        if (!res.ok) {
+            throw new Error(`Failed to fetch languages: ${res.statusText}`);
+        }
+        return await res.json();
+    } catch (error) {
+        console.error("Error fetching languages:", error);
+        return { languages: [] };
     }
 }
 

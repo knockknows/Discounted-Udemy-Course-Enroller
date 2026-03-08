@@ -15,6 +15,7 @@ class Course(Base):
     
     # New Fields
     category = Column(String, nullable=True, index=True)
+    language = Column(String, nullable=True, index=True)
     thumbnail_url = Column(String, nullable=True)
     discount_info = Column(String, nullable=True)
     expiration_date = Column(String, nullable=True)

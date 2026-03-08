@@ -29,6 +29,9 @@ def ensure_schema_updates():
         if 'category' not in columns:
             logger.info("Adding 'category' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN category VARCHAR"))
+        if 'language' not in columns:
+            logger.info("Adding 'language' column...")
+            conn.execute(text("ALTER TABLE courses ADD COLUMN language VARCHAR"))
         if 'thumbnail_url' not in columns:
             logger.info("Adding 'thumbnail_url' column...")
             conn.execute(text("ALTER TABLE courses ADD COLUMN thumbnail_url VARCHAR"))
@@ -228,6 +231,7 @@ def scrape_job(db: Session):
                 
                 # Update new fields
                 existing.category = course_data.get("category")
+                existing.language = course_data.get("language")
                 existing.thumbnail_url = course_data.get("thumbnail_url")
                 existing.discount_info = course_data.get("discount_info")
                 existing.expiration_date = course_data.get("expiration_date")
@@ -259,7 +263,7 @@ def scrape_job(db: Session):
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Discounted Udemy Courses API", "endpoints": ["/courses", "/scrape"]}
+    return {"message": "Welcome to Discounted Udemy Courses API", "endpoints": ["/courses", "/languages", "/scrape"]}
 
 import schemas
 
@@ -273,6 +277,7 @@ def read_courses(
     limit: int = 20, 
     search: Optional[str] = None,
     category: Optional[str] = None,
+    language: Optional[str] = None,
     show_free_only: bool = False,
     is_subscribed: Optional[bool] = None,
     verification: str = "all",
@@ -285,6 +290,9 @@ def read_courses(
     
     if category and category != "All":
         query = query.filter(models.Course.category == category)
+
+    if language and language != "All":
+        query = query.filter(models.Course.language == language)
         
     if show_free_only:
         query = query.filter(models.Course.is_free == True)
@@ -297,7 +305,7 @@ def read_courses(
 
     total_count = query.count()
     logger.info(
-        f"API /courses: search='{search}', category='{category}', free={show_free_only}, "
+        f"API /courses: search='{search}', category='{category}', language='{language}', free={show_free_only}, "
         f"verification='{verification}' -> Found {total_count} records"
     )
     
@@ -311,6 +319,19 @@ def read_courses(
         limit=limit,
         courses=courses
     )
+
+
+@app.get("/languages", response_model=schemas.LanguagesResponse)
+def read_languages(db: Session = Depends(get_db)):
+    rows = (
+        db.query(models.Course.language)
+        .filter(models.Course.language.isnot(None), models.Course.language != "")
+        .distinct()
+        .order_by(models.Course.language.asc())
+        .all()
+    )
+    languages = [row[0] for row in rows if row[0]]
+    return schemas.LanguagesResponse(languages=languages)
 
 @app.put("/courses/{course_id}/subscribe", response_model=schemas.Course)
 def toggle_subscribe(course_id: int, db: Session = Depends(get_db)):

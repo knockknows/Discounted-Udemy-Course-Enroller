@@ -12,6 +12,8 @@ function getVerificationBadge(course: Course): { label: string; className: strin
             return { label: "Verified 100%", className: "bg-green-600 text-white" };
         case "verified_not_100":
             return { label: "<100% Verified", className: "bg-red-600 text-white" };
+        case "verification_pending":
+            return { label: "Verification Pending (403)", className: "bg-orange-500 text-white" };
         case "unverified_error":
             return { label: "Unverified", className: "bg-amber-500 text-white" };
         default:
@@ -91,11 +93,18 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
             <div className="p-4">
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-bold px-2 py-1 rounded bg-blue-100 text-blue-800">{course.site}</span>
-                    {course.category && (
-                        <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-100 rounded">
-                            {course.category}
-                        </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                        {course.language && (
+                            <span className="text-xs text-teal-700 font-medium px-2 py-1 bg-teal-100 rounded">
+                                {course.language}
+                            </span>
+                        )}
+                        {course.category && (
+                            <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-100 rounded">
+                                {course.category}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 h-14" title={course.title}>
@@ -142,7 +151,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course: initialCourse }) => {
                         </div>
                     )}
 
-                    {course.verification_error && course.verification_status === "unverified_error" && (
+                    {course.verification_error && (course.verification_status === "unverified_error" || course.verification_status === "verification_pending") && (
                         <div className="text-xs text-amber-700 line-clamp-2">Verification Note: {course.verification_error}</div>
                     )}
 

@@ -7,6 +7,7 @@ export interface Course {
     is_free: boolean;
     price: string | null;
     category?: string | null;
+    language?: string | null;
     thumbnail_url?: string | null;
     discount_info?: string | null;
     expiration_date?: string | null;
@@ -14,7 +15,7 @@ export interface Course {
     total_reviews?: number | null;
     description?: string | null;
     is_subscribed?: boolean;
-    verification_status?: "verified_100" | "verified_not_100" | "unverified_error";
+    verification_status?: "verified_100" | "verified_not_100" | "unverified_error" | "verification_pending";
     verified_discount_percent?: number | null;
     verified_final_price?: string | null;
     verification_source?: string | null;
@@ -27,4 +28,8 @@ export interface Course {
 export interface CoursesResponse {
     courses: Course[];
     count: number;
+}
+
+export interface LanguagesResponse {
+    languages: string[];
 }

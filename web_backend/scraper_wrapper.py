@@ -19,6 +19,30 @@ from base import Scraper, logger, scraper_dict
 VERIFIED_100 = "verified_100"
 VERIFIED_NOT_100 = "verified_not_100"
 UNVERIFIED_ERROR = "unverified_error"
+VERIFICATION_PENDING = "verification_pending"
+
+PENDING_VERIFICATION_MESSAGE = "Verification temporarily blocked by Udemy. Retrying on next crawl."
+
+LANGUAGE_CODE_MAP = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "pt": "Portuguese",
+    "it": "Italian",
+    "tr": "Turkish",
+    "ru": "Russian",
+    "ar": "Arabic",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese",
+    "hi": "Hindi",
+    "vi": "Vietnamese",
+    "id": "Indonesian",
+    "pl": "Polish",
+    "nl": "Dutch",
+    "th": "Thai",
+}
 
 APPLIED_STATUSES = {"applied", "best_price", "already_applied"}
 FAILED_STATUSES = {
@@ -137,6 +161,63 @@ def _build_verification_result(
     }
 
 
+def _build_pending_verification_result(source: str, error: Optional[str] = None) -> dict:
+    return _build_verification_result(
+        VERIFICATION_PENDING,
+        None,
+        None,
+        source,
+        error=error or PENDING_VERIFICATION_MESSAGE,
+    )
+
+
+def _normalize_language_name(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+    return " ".join(part for part in normalized.split())
+
+
+def _language_from_code(code: Optional[str]) -> Optional[str]:
+    if not code:
+        return None
+    normalized = code.strip().lower().replace("_", "-")
+    if not normalized:
+        return None
+    base_code = normalized.split("-")[0]
+    return LANGUAGE_CODE_MAP.get(base_code)
+
+
+def _extract_course_language(soup: BeautifulSoup, html: str) -> Optional[str]:
+    pattern_candidates = [
+        r'"localeSimpleEnglishTitle"\s*:\s*"([^"]+)"',
+        r'"simple_english_title"\s*:\s*"([^"]+)"',
+        r'"locale_title"\s*:\s*"([^"]+)"',
+    ]
+    for pattern in pattern_candidates:
+        match = re.search(pattern, html)
+        if match:
+            language = _normalize_language_name(match.group(1))
+            if language:
+                return language
+
+    og_locale = soup.find("meta", attrs={"property": "og:locale"})
+    if og_locale and og_locale.get("content"):
+        language = _language_from_code(og_locale["content"])
+        if language:
+            return language
+
+    html_tag = soup.find("html")
+    if html_tag and html_tag.get("lang"):
+        language = _language_from_code(html_tag.get("lang"))
+        if language:
+            return language
+
+    return None
+
+
 def _evaluate_verification(
     coupon_code: Optional[str],
     discount_percent: Optional[int],
@@ -207,6 +288,8 @@ def _verify_with_api(
         )
 
     if response.status_code != 200:
+        if response.status_code == 403:
+            return _build_pending_verification_result("api")
         return _build_verification_result(
             UNVERIFIED_ERROR,
             None,
@@ -401,7 +484,10 @@ def get_all_courses():
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.content, "html.parser")
                     course.set_udemy_metadata(soup)
+                    course.language = _extract_course_language(soup, response.text)
                     verification_result = verify_udemy_discount(course, udemy_scraper, response.text, soup)
+                elif response.status_code == 403:
+                    verification_result = _build_pending_verification_result("html")
                 else:
                     verification_result = _build_verification_result(
                         UNVERIFIED_ERROR,
@@ -453,6 +539,7 @@ def get_all_courses():
                 "is_free": verification.get("verification_status") == VERIFIED_100,
                 "price": _decimal_to_string(stored_price),
                 "category": getattr(course, "category", None),
+                "language": getattr(course, "language", None),
                 "thumbnail_url": getattr(course, "thumbnail_url", None),
                 "discount_info": discount_info,
                 "expiration_date": getattr(course, "expiration_date", None),

@@ -7,35 +7,34 @@ import { Course } from "@/types";
 
 interface CourseGridProps {
     initialCourses: Course[];
+    availableLanguages?: string[];
     totalCount: number;
     currentPage: number;
     totalPages: number;
 }
 
-export default function CourseGrid({ initialCourses = [], totalCount = 0, currentPage = 1, totalPages = 1 }: CourseGridProps) {
+export default function CourseGrid({
+    initialCourses = [],
+    availableLanguages = ["All"],
+    totalCount = 0,
+    currentPage = 1,
+    totalPages = 1
+}: CourseGridProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
 
     // Initialize state from URL
     const initialSearch = searchParams.get("search") || "";
     const initialCategory = searchParams.get("category") || "All";
+    const initialLanguage = searchParams.get("language") || "All";
     const initialShowFreeOnly = searchParams.get("show_free_only") === "true";
     const initialIsSubscribed = searchParams.get("is_subscribed") === "true";
 
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+    const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage);
     const [showFreeOnly, setShowFreeOnly] = useState(initialShowFreeOnly);
     const [showSubscribedOnly, setShowSubscribedOnly] = useState(initialIsSubscribed);
-
-    // Debounce search update
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            if (searchQuery !== initialSearch) {
-                updateUrl(searchQuery, selectedCategory, showFreeOnly, showSubscribedOnly, 1);
-            }
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [searchQuery]);
 
     // Udemy Standard Categories (Hardcoded for stability)
     const categories = [
@@ -56,37 +55,60 @@ export default function CourseGrid({ initialCourses = [], totalCount = 0, curren
         "Uncategorized"
     ];
 
-    const updateUrl = (search: string, category: string, freeOnly: boolean, subscribedOnly: boolean, page: number) => {
+    const updateUrl = (
+        search: string,
+        category: string,
+        language: string,
+        freeOnly: boolean,
+        subscribedOnly: boolean,
+        page: number
+    ) => {
         const params = new URLSearchParams();
         if (page > 1) params.set("page", page.toString());
         if (search) params.set("search", search);
         if (category && category !== "All") params.set("category", category);
+        if (language && language !== "All") params.set("language", language);
         if (freeOnly) params.set("show_free_only", "true");
         if (subscribedOnly) params.set("is_subscribed", "true");
 
         router.push(`/?${params.toString()}`);
     };
 
+    // Debounce search update
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchQuery !== initialSearch) {
+                updateUrl(searchQuery, selectedCategory, selectedLanguage, showFreeOnly, showSubscribedOnly, 1);
+            }
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
     const handleCategoryChange = (cat: string) => {
         setSelectedCategory(cat);
-        updateUrl(searchQuery, cat, showFreeOnly, showSubscribedOnly, 1); // Reset to page 1
+        updateUrl(searchQuery, cat, selectedLanguage, showFreeOnly, showSubscribedOnly, 1); // Reset to page 1
+    };
+
+    const handleLanguageChange = (lang: string) => {
+        setSelectedLanguage(lang);
+        updateUrl(searchQuery, selectedCategory, lang, showFreeOnly, showSubscribedOnly, 1); // Reset to page 1
     };
 
     const handleFreeToggle = () => {
         const newVal = !showFreeOnly;
         setShowFreeOnly(newVal);
-        updateUrl(searchQuery, selectedCategory, newVal, showSubscribedOnly, 1); // Reset to page 1
+        updateUrl(searchQuery, selectedCategory, selectedLanguage, newVal, showSubscribedOnly, 1); // Reset to page 1
     };
 
     const handleSubscribedToggle = () => {
         const newVal = !showSubscribedOnly;
         setShowSubscribedOnly(newVal);
-        updateUrl(searchQuery, selectedCategory, showFreeOnly, newVal, 1); // Reset to page 1
+        updateUrl(searchQuery, selectedCategory, selectedLanguage, showFreeOnly, newVal, 1); // Reset to page 1
     };
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
-            updateUrl(searchQuery, selectedCategory, showFreeOnly, showSubscribedOnly, newPage);
+            updateUrl(searchQuery, selectedCategory, selectedLanguage, showFreeOnly, showSubscribedOnly, newPage);
         }
     };
 
@@ -112,6 +134,15 @@ export default function CourseGrid({ initialCourses = [], totalCount = 0, curren
                     >
                         {categories.map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={selectedLanguage}
+                        onChange={(e) => handleLanguageChange(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                        {availableLanguages.map((language) => (
+                            <option key={language} value={language}>{language}</option>
                         ))}
                     </select>
 
@@ -152,9 +183,10 @@ export default function CourseGrid({ initialCourses = [], totalCount = 0, curren
                             onClick={() => {
                                 setSearchQuery("");
                                 setSelectedCategory("All");
+                                setSelectedLanguage("All");
                                 setShowFreeOnly(false);
                                 setShowSubscribedOnly(false);
-                                updateUrl("", "All", false, false, 1);
+                                updateUrl("", "All", "All", false, false, 1);
                             }}
                             className="mt-4 text-blue-600 hover:underline"
                         >

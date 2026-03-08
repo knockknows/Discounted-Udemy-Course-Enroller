@@ -10,6 +10,7 @@ class CourseBase(BaseModel):
     is_free: bool = False
     price: Optional[str] = None
     category: Optional[str] = None
+    language: Optional[str] = None
     thumbnail_url: Optional[str] = None
     discount_info: Optional[str] = None
     expiration_date: Optional[str] = None
@@ -40,3 +41,7 @@ class CourseList(BaseModel):
 
 class StatusResponse(BaseModel):
     is_running: bool
+
+
+class LanguagesResponse(BaseModel):
+    languages: List[str]

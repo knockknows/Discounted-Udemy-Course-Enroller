@@ -1,4 +1,4 @@
-import { fetchCourses } from "@/lib/api";
+import { fetchCourses, fetchLanguages } from "@/lib/api";
 import ScrapeButton from "@/components/ScrapeButton";
 import CourseGrid from "@/components/CourseGrid";
 
@@ -11,6 +11,7 @@ export default async function Home(props: {
   const page = Number(searchParams.page) || 1;
   const search = typeof searchParams.search === "string" ? searchParams.search : "";
   const category = typeof searchParams.category === "string" ? searchParams.category : "All";
+  const language = typeof searchParams.language === "string" ? searchParams.language : "All";
 
   // Default to false so flagged/non-100 items remain visible unless explicitly filtered.
   const rawShowFree = searchParams.show_free_only;
@@ -20,7 +21,10 @@ export default async function Home(props: {
   const rawIsSubscribed = searchParams.is_subscribed;
   const isSubscribed = rawIsSubscribed === "true" || (Array.isArray(rawIsSubscribed) && rawIsSubscribed[0] === "true") ? true : undefined;
 
-  const { courses, count } = await fetchCourses(page, 20, search, category, showFreeOnly, isSubscribed);
+  const [{ courses, count }, { languages }] = await Promise.all([
+    fetchCourses(page, 20, search, category, language, showFreeOnly, isSubscribed),
+    fetchLanguages(),
+  ]);
   const totalPages = Math.ceil(count / 20);
 
   return (
@@ -36,6 +40,7 @@ export default async function Home(props: {
       <div className="max-w-7xl mx-auto">
         <CourseGrid
           initialCourses={courses}
+          availableLanguages={["All", ...languages]}
           totalCount={count}
           currentPage={page}
           totalPages={totalPages}
