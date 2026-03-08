@@ -9,6 +9,7 @@ from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import cloudscraper
+import requests
 from bs4 import BeautifulSoup
 
 # Add parent directory to path to import base.py
@@ -427,18 +428,28 @@ def verify_udemy_discount(
     soup: BeautifulSoup,
 ) -> dict:
     course_id = _extract_course_id(soup, html)
+    api_result = None
+    api_status = None
     api_error = None
 
     if course_id:
         api_result = _verify_with_api(udemy_scraper, course_id, course.coupon_code)
-        if api_result["verification_status"] != UNVERIFIED_ERROR:
+        api_status = api_result.get("verification_status")
+        if api_status in {VERIFIED_100, VERIFIED_NOT_100}:
             return api_result
         api_error = api_result.get("verification_error")
 
     html_result = _verify_with_html(course, html, soup)
-    if html_result["verification_status"] != UNVERIFIED_ERROR:
+    if html_result["verification_status"] in {VERIFIED_100, VERIFIED_NOT_100}:
         html_result["verification_source"] = "api+html" if course_id else "html"
         return html_result
+
+    if api_status == VERIFICATION_PENDING:
+        joined_error = " | ".join(filter(None, [api_error, html_result.get("verification_error")]))
+        return _build_pending_verification_result(
+            source="api+html" if course_id else "html",
+            error=joined_error or PENDING_VERIFICATION_MESSAGE,
+        )
 
     joined_error = " | ".join(filter(None, [api_error, html_result.get("verification_error")]))
     return _build_verification_result(
@@ -472,14 +483,37 @@ def get_all_courses():
 
     # Enrichment
     logger.info("Enriching course data from Udemy...")
-    # Use desktop chrome emulation to avoid 403
-    udemy_scraper = cloudscraper.create_scraper(
+    # Requests-first is more stable in this environment; cloudscraper is fallback.
+    udemy_scraper = requests.Session()
+    udemy_scraper.headers.update(
+        {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/137.0.0.0 Safari/537.36"
+            ),
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+    )
+    udemy_fallback_scraper = cloudscraper.create_scraper(
         browser={
             "browser": "chrome",
             "platform": "windows",
             "desktop": True,
         }
     )
+
+    def fetch_udemy_page(url: str):
+        last_response = None
+        for client in (udemy_scraper, udemy_fallback_scraper):
+            try:
+                response = client.get(url, timeout=20)
+            except Exception:
+                continue
+            last_response = response
+            if response.status_code != 403:
+                return response
+        return last_response
 
     def enrich_course(course):
         verification_result = _build_verification_result(
@@ -495,13 +529,13 @@ def get_all_courses():
                 # Basic sleep to avoid aggressive request burst
                 time.sleep(1)
 
-                response = udemy_scraper.get(course.url, timeout=20)
-                if response.status_code == 200:
+                response = fetch_udemy_page(course.url)
+                if response and response.status_code == 200:
                     soup = BeautifulSoup(response.content, "html.parser")
                     course.set_udemy_metadata(soup)
                     course.language = _extract_course_language(soup, response.text)
                     verification_result = verify_udemy_discount(course, udemy_scraper, response.text, soup)
-                elif response.status_code == 403:
+                elif response and response.status_code == 403:
                     verification_result = _build_pending_verification_result("html")
                 else:
                     verification_result = _build_verification_result(
@@ -509,7 +543,11 @@ def get_all_courses():
                         None,
                         None,
                         source="html",
-                        error=f"Udemy page fetch failed with HTTP {response.status_code}",
+                        error=(
+                            f"Udemy page fetch failed with HTTP {response.status_code}"
+                            if response
+                            else "Udemy page fetch failed: no response"
+                        ),
                     )
             except Exception as e:
                 logger.error(f"Error enriching {course.url}: {e}")
