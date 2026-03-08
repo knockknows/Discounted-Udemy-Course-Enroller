@@ -339,7 +339,14 @@ class Scraper:
             redis_client = redis.from_url(redis_url, socket_connect_timeout=1)
             redis_client.ping()
             print("Connected to Redis for locking.")
-            lock = redis_client.lock("scraper_lock", timeout=600, blocking_timeout=5)
+            # Full scrape + enrichment can exceed 10 minutes; keep lock long enough
+            # to prevent overlapping manual/scheduled jobs.
+            lock_timeout_seconds = int(os.getenv("SCRAPER_LOCK_TIMEOUT_SEC", "3600"))
+            lock = redis_client.lock(
+                "scraper_lock",
+                timeout=lock_timeout_seconds,
+                blocking_timeout=5,
+            )
         except Exception as e:
             print(f"Redis connection failed: {e}. Proceeding without lock (unsafe for concurrency).")
 
