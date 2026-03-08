@@ -326,27 +326,15 @@ class Scraper:
 
     def get_scraped_courses(self, target: object) -> dict:
         logger.info(f"Starting scrape for sites: {self.sites}")
-        threads = []
         scraped_data = set()
-        for site in self.sites:
-            logger.info(f"Scraping site: {site}")
-            t = threading.Thread(
-                target=target,
-                args=(site,),
-                daemon=True,
-            )
-            t.start()
-            threads.append(t)
-            time.sleep(0.2)
-        
-        for t in threads:
-            t.join()
-        
+        site_timeout_seconds = int(os.getenv("SCRAPER_SITE_TIMEOUT_SEC", "180"))
+
         # Redis Locking
         redis_client = None
         lock = None
+        have_lock = False
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        
+
         try:
             redis_client = redis.from_url(redis_url, socket_connect_timeout=1)
             redis_client.ping()
@@ -363,15 +351,40 @@ class Scraper:
             else:
                 logger.info("Acquired scraper lock.")
 
+        threads = []
+
+        def _run_site(site: str):
+            try:
+                logger.info(f"Scraping site: {site}")
+                if target:
+                    target(site)
+                else:
+                    getattr(self, scraper_dict[site])()
+            except Exception:
+                logger.exception(f"Unhandled scrape exception for site: {site}")
+
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.sites)) as executor:
-                for site in self.sites:
-                    executor.submit(target if target else getattr(self, scraper_dict[site]))
+            for site in self.sites:
+                t = threading.Thread(
+                    target=_run_site,
+                    args=(site,),
+                    daemon=True,
+                )
+                t.start()
+                threads.append((site, t))
+                time.sleep(0.2)
+
+            for site, t in threads:
+                t.join(timeout=site_timeout_seconds)
+                if t.is_alive():
+                    logger.error(
+                        f"Site scraper timed out after {site_timeout_seconds}s: {site}"
+                    )
 
             for site in self.sites:
                 data = getattr(self, f"{scraper_dict[site]}_data")
                 scraped_data.update(data)
-                
+
         finally:
             if lock and have_lock:
                 try:
@@ -540,7 +553,8 @@ class Scraper:
                 title = item.img["alt"]
                 thumbnail_url = item.img.get("src")
                 link = requests.get(
-                    f"https://www.udemyfreebies.com/out/{item['href'].split('/')[4]}"
+                    f"https://www.udemyfreebies.com/out/{item['href'].split('/')[4]}",
+                    timeout=(10, 30),
                 ).url
                 
                 # Category/Discount not easily available on listing page without deep dive
@@ -660,7 +674,8 @@ class Scraper:
                 return
             r = requests.get(
                 "https://coursevania.com/wp-admin/admin-ajax.php?&template=courses/grid&args={%22posts_per_page%22:%22500%22}&action=stm_lms_load_content&sort=date_high&nonce="
-                + nonce
+                + nonce,
+                timeout=(10, 30),
             ).json()
 
             soup = self.parse_html(r["content"])
@@ -746,6 +761,7 @@ class Scraper:
                 r = requests.get(
                     link,
                     allow_redirects=False,
+                    timeout=(10, 30),
                 )
                 if "comidoc.net" in link or "comidoc.com" in link:
                     logger.info("Comidoc link: " + link)
@@ -897,6 +913,7 @@ class Scraper:
                         requests.post,
                         f"https://courson.xyz/load-more-coupons",
                         json={"filters": {}, "offset": (page - 1) * 30},
+                        timeout=(10, 30),
                     )
                     for page in range(1, 11)
                 ]

@@ -126,7 +126,10 @@ except Exception as e:
     logger.error(f"Failed to add Redis Sink: {e}")
 
 # Initialize scheduler
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(
+    timezone="UTC",
+    job_defaults={"coalesce": True, "max_instances": 1},
+)
 
 def scheduled_scrape():
     logger.info("Running scheduled scrape...")
@@ -153,10 +156,29 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up...")
     # Run cleanup on startup once
     clean_old_courses()
-    
-    scheduler.add_job(scheduled_scrape, 'interval', minutes=15)
+
+    scheduler.add_job(
+        scheduled_scrape,
+        'interval',
+        id="scheduled_scrape",
+        minutes=15,
+        replace_existing=True,
+        misfire_grace_time=900,
+        max_instances=1,
+        coalesce=True,
+    )
     # Run cleanup once a day at midnight
-    scheduler.add_job(clean_old_courses, 'cron', hour=0, minute=0)
+    scheduler.add_job(
+        clean_old_courses,
+        'cron',
+        id="daily_course_cleanup",
+        hour=0,
+        minute=0,
+        replace_existing=True,
+        misfire_grace_time=3600,
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     logger.info("Scheduler started.")
     yield
